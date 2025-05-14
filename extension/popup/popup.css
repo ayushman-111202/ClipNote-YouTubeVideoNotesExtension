@@ -1,0 +1,49 @@
+body {
+    margin: 0;
+    padding: 12px;
+    font-family: 'Roboto', sans-serif;
+    background-color: #212121;
+    color: #fff;
+    width: 320px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+.playlist {
+    border: 1px solid #424242;
+    padding: 10px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    background-color: #2a2a2a;
+}
+
+.playlist-title {
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #ff0000;
+}
+
+.clip {
+    font-size: 13px;
+    margin-bottom: 6px;
+    background: #333;
+    padding: 4px;
+    border-radius: 3px;
+}
+
+.clip a {
+    color: #1e90ff;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.clip a:hover {
+    text-decoration: underline;
+}

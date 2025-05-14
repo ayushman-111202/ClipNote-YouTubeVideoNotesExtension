@@ -1,0 +1,25 @@
+{
+    "manifest_version" : 3,
+    "name" : "ClipNote",
+    "version" : "1.0",
+    "description" : "A chrome extension dedicated for youtube to make a collections of videos using the time-stamps",
+    "icons" : {
+        "16" : "assets/icon-16.png",
+        "32" : "assets/icon-32.png",
+        "48" : "assets/icon-48.png",
+        "64" : "assets/icon-64.png",
+        "96" : "assets/icon-96.png",
+        "128" : "assets/icon-128.png"
+    },
+    "action" : {
+        "default_popup" : "popup/popup.html"
+    },
+    "permissions" : ["activeTab", "storage" ],
+    "host_permissions" : ["https://*.youtube.com/*", "http://localhost:3000/*"],
+    "content_scripts" : [
+        {
+            "matches" : ["https://*.youtube.com/*"],
+            "js" : ["scripts/content.js"]
+        }
+    ]
+}
