@@ -5,45 +5,77 @@ body {
     background-color: #212121;
     color: #fff;
     width: 320px;
-    max-height: 400px;
+    min-height: 400px;
+    max-height: none;
     overflow-y: auto;
-}
-
-h2 {
+    box-sizing: border-box;
+  }
+  
+  h2 {
     font-size: 18px;
     margin-bottom: 10px;
     color: #fff;
-}
-
-.playlist {
-    border: 1px solid #424242;
-    padding: 10px;
-    margin-bottom: 12px;
-    border-radius: 4px;
+  }
+  
+  #auth-section {
+    width: 100%;
+    padding: 12px;
     background-color: #2a2a2a;
-}
-
-.playlist-title {
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+  
+  #auth-section input,
+  #auth-section select,
+  #auth-section button {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background-color: #333;
+    color: white;
+    box-sizing: border-box;
+  }
+  
+  #auth-section button {
+    background-color: #ff0000;
     font-weight: bold;
-    margin-bottom: 8px;
+    border: none;
+    cursor: pointer;
+  }
+  
+  #auth-section button:hover {
+    background-color: #cc0000;
+  }
+  
+  #auth-message {
     font-size: 14px;
-    color: #ff0000;
-}
-
-.clip {
-    font-size: 13px;
-    margin-bottom: 6px;
-    background: #333;
-    padding: 4px;
-    border-radius: 3px;
-}
-
-.clip a {
-    color: #1e90ff;
-    text-decoration: none;
-    font-size: 12px;
-}
-
-.clip a:hover {
-    text-decoration: underline;
-}
+    margin-top: 6px;
+    word-break: break-word;
+  }
+  
+  #user-info {
+    padding: 12px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+  }
+  
+  #user-info p {
+    margin: 0 0 10px 0;
+  }
+  
+  #user-info button {
+    width: 100%;
+    padding: 10px;
+    background-color: #555;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  
+  #user-info button:hover {
+    background-color: #777;
+  }
+  

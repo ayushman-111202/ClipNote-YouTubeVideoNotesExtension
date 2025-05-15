@@ -80,31 +80,31 @@ router.post('/authenticate', async (req, res) => {
 });
 
 // Verify token endpoint
-router.get('/verify-token', async (req, res) => {
-    try {
-        // Get token from header
-        const token = req.header('Authorization')?.replace('Bearer ', '');
+// router.get('/verify-token', async (req, res) => {
+//     try {
+//         // Get token from header
+//         const token = req.header('Authorization')?.replace('Bearer ', '');
         
-        if (!token) {
-            return res.json({ valid: false });
-        }
+//         if (!token) {
+//             return res.json({ valid: false });
+//         }
 
-        // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//         // Verify token
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
-        // Find user
-        const user = await UserModel.findById(decoded._id);
+//         // Find user
+//         const user = await UserModel.findById(decoded._id);
         
-        if (!user) {
-            return res.json({ valid: false });
-        }
+//         if (!user) {
+//             return res.json({ valid: false });
+//         }
 
-        res.json({ valid: true, user: { id: user._id, role: user.role } });
-    } catch (error) {
-        console.error('Token verification error:', error);
-        res.json({ valid: false });
-    }
-});
+//         res.json({ valid: true, user: { id: user._id, role: user.role } });
+//     } catch (error) {
+//         console.error('Token verification error:', error);
+//         res.json({ valid: false });
+//     }
+// });
 
 // Protected routes (authentication required)
 router.use(userCheck);

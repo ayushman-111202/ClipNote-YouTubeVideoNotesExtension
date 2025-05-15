@@ -14,7 +14,28 @@ const feedbackRouter = require('./routers/feedbackRouter');
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+    "chrome-extension://ebpbepkddpjhhjgbdookboidhhmihbbp", // Allow all extensions (for development)
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
+    "http://localhost:3000"
+  ];
+
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS: " + origin));
+    }
+  },
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PATCH', 'DELETE']
+}));
+
 app.use(express.json());
 
 // Connect to MongoDB
@@ -39,7 +60,7 @@ app.use('/feedback', feedbackRouter);
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).json({ 
+    res.status(500).json({
         message: 'Something went wrong!',
         error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });

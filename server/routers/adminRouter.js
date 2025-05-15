@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { adminCheck } = require('../middlewares/adminCheck');
 const User = require('../models/UserModel');
+const Feedback = require('../models/FeedbackModel');
 
 // Apply adminCheck middleware to all admin routes
 router.use(adminCheck);
@@ -140,6 +141,33 @@ router.post('/update-all-roles', async (req, res) => {
     } catch (error) {
         console.error('Error updating user roles:', error);
         res.status(500).json({ message: 'Error updating user roles' });
+    }
+});
+
+// FEEDBACK MANAGEMENT ROUTES
+
+// Get all feedbacks (admin only)
+router.get('/feedback', async (req, res) => {
+    try {
+        const feedbacks = await Feedback.find();
+        res.json(feedbacks);
+    } catch (error) {
+        console.error('Error fetching feedbacks:', error);
+        res.status(500).json({ message: 'Error fetching feedbacks' });
+    }
+});
+
+// Delete feedback (admin only)
+router.delete('/feedback/:id', async (req, res) => {
+    try {
+        const feedback = await Feedback.findByIdAndDelete(req.params.id);
+        if (!feedback) {
+            return res.status(404).json({ message: 'Feedback not found' });
+        }
+        res.json({ message: 'Feedback deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting feedback:', error);
+        res.status(500).json({ message: 'Error deleting feedback' });
     }
 });
 

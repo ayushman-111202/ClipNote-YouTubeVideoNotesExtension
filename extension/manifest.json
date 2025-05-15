@@ -1,25 +1,46 @@
 {
-    "manifest_version" : 3,
-    "name" : "ClipNote",
-    "version" : "1.0",
-    "description" : "A chrome extension dedicated for youtube to make a collections of videos using the time-stamps",
-    "icons" : {
-        "16" : "assets/icon-16.png",
-        "32" : "assets/icon-32.png",
-        "48" : "assets/icon-48.png",
-        "64" : "assets/icon-64.png",
-        "96" : "assets/icon-96.png",
-        "128" : "assets/icon-128.png"
-    },
-    "action" : {
-        "default_popup" : "popup/popup.html"
-    },
-    "permissions" : ["activeTab", "storage" ],
-    "host_permissions" : ["https://*.youtube.com/*", "http://localhost:3000/*"],
-    "content_scripts" : [
-        {
-            "matches" : ["https://*.youtube.com/*"],
-            "js" : ["scripts/content.js"]
+    "manifest_version": 3,
+    "name": "ClipNote - YouTube Clip Saver",
+    "version": "1.0",
+    "description": "Save and organize YouTube video clips with notes and timestamps.",
+    "permissions": [
+        "storage",
+        "activeTab"
+    ],
+    "host_permissions": [
+        "http://localhost:3000/*",
+        "https://*.youtube.com/*"
+    ],
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_icon": {
+            "16": "assets/icon-16.png",
+            "32": "assets/icon-32.png",
+            "48": "assets/icon-48.png",
+            "64": "assets/icon-64.png",
+            "96": "assets/icon-96.png",
+            "128": "assets/icon-128.png"
         }
-    ]
+    },
+    "background": {
+        "service_worker": "scripts/background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://*.youtube.com/*"
+            ],
+            "js": [
+                "scripts/content.js"
+            ],
+            "css": [
+                "styles/modal.css"
+            ]
+        }
+    ],
+    "icons": {
+        "16": "assets/icon-16.png",
+        "48": "assets/icon-48.png",
+        "128": "assets/icon-128.png"
+    }
 }

@@ -1,6 +1,9 @@
 class YouTubeNotesSaver {
   constructor() {
-    this.API_URL = 'http://localhost:5000/notes/add';
+    // Use the same API base as popup.js
+    this.API_BASE = "http://localhost:5000";
+    this.API_URL = `${this.API_BASE}/clips/add`;
+    
     if (window.location.hostname === 'www.youtube.com' && new URLSearchParams(window.location.search).get('v')) {
       this.initialize();
     }
@@ -83,6 +86,9 @@ class YouTubeNotesSaver {
           </select>
           <button id="newCollection" style="width: 30%; padding: 8px; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">New</button>
         </div>
+      </div>
+      <div id="auth-message" style="color: red; margin-bottom: 10px; display: none;">
+        Please log in to save clips
       </div>
       <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button id="cancelBtn" style="padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; border-radius: 4px; cursor: pointer;">Cancel</button>
@@ -184,7 +190,7 @@ class YouTubeNotesSaver {
     return new Date(seconds * 1000).toISOString().substr(11, 8);
   }
 
-  openModal() {
+  async openModal() {
     const modal = document.querySelector('div[style*="width: 400px"]');
     const videoInfo = this.getVideoInfo();
     const currentTime = this.formatTime(videoInfo.currentTime);
@@ -196,6 +202,15 @@ class YouTubeNotesSaver {
 
     modal.querySelector('#startTime').value = currentTime;
     modal.querySelector('#endTime').value = this.formatTime(videoInfo.currentTime + 30);
+    
+    // Check auth status when opening modal
+    const authStatus = await this.checkAuthStatus();
+    if (!authStatus) {
+      modal.querySelector('#auth-message').style.display = 'block';
+    } else {
+      modal.querySelector('#auth-message').style.display = 'none';
+    }
+    
     modal.style.display = 'block';
   }
 
@@ -224,9 +239,39 @@ class YouTubeNotesSaver {
     modal.style.display = 'none';
     modal.querySelector('#notes').value = '';
     modal.querySelector('#playlist').value = '';
+    modal.querySelector('#auth-message').style.display = 'none';
+  }
+  
+  // New method to check authentication status
+  async checkAuthStatus() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['token'], (result) => {
+        resolve(!!result.token);
+      });
+    });
+  }
+
+  // Get authentication token
+  async getAuthToken() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['token'], (result) => {
+        resolve(result.token || null);
+      });
+    });
   }
 
   async saveNote() {
+    const modal = document.querySelector('div[style*="width: 400px"]');
+    const authMessage = modal.querySelector('#auth-message');
+    
+    // Check auth token
+    const token = await this.getAuthToken();
+    if (!token) {
+      authMessage.textContent = 'Please log in to save clips';
+      authMessage.style.display = 'block';
+      return;
+    }
+    
     const videoInfo = this.getVideoInfo();
     const noteData = {
       videoID: videoInfo.videoId,
@@ -239,9 +284,13 @@ class YouTubeNotesSaver {
     };
 
     try {
+      // Include auth token in the request
       const response = await fetch(this.API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(noteData)
       });
 
@@ -249,10 +298,14 @@ class YouTubeNotesSaver {
         alert('Video portion saved successfully!');
         this.closeModal();
       } else {
-        alert('Failed to save video portion');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to save video portion' }));
+        authMessage.textContent = errorData.message || 'Failed to save video portion';
+        authMessage.style.display = 'block';
       }
     } catch (error) {
-      alert('Error saving video portion');
+      console.error('Error saving note:', error);
+      authMessage.textContent = 'Error connecting to server';
+      authMessage.style.display = 'block';
     }
   }
 }

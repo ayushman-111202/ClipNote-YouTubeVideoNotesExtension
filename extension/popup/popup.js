@@ -1,150 +1,139 @@
-// // Enable/disable playlist inputs based on selection
-// document.querySelectorAll('input[name="saveOption"]').forEach(radio => {
-//     radio.addEventListener('change', () => {
-//         const playlistSelect = document.getElementById('playlistSelect');
-//         const newPlaylistName = document.getElementById('newPlaylistName');
-//         playlistSelect.disabled = radio.value !== 'existing';
-//         newPlaylistName.disabled = radio.value !== 'new';
-//     });
-// });
-
-// // Populate existing playlists
-// const userId = 'REPLACE_WITH_LOGGEDIN_USER_ID'; // you can pass it from storage/token/etc.
-
-// axios.get(`http://localhost:5000/playlist/getbyuser/${userId}`)
-//     .then(res => {
-//         const playlistSelect = document.getElementById('playlistSelect');
-//         res.data.forEach(playlist => {
-//             const option = document.createElement('option');
-//             option.value = playlist._id;
-//             option.textContent = playlist.name;
-//             playlistSelect.appendChild(option);
-//         });
-//     })
-//     .catch(err => {
-//         console.error('Error fetching playlists:', err);
-//     });
-
-// // Save button handler
-// document.getElementById('saveClipBtn').addEventListener('click', function () {
-//     const videoId = document.getElementById('videoId').value;
-//     const startTime = parseFloat(document.getElementById('startTime').value);
-//     const endTime = parseFloat(document.getElementById('endTime').value);
-//     const note = document.getElementById('note').value;
-
-//     const saveOption = document.querySelector('input[name="saveOption"]:checked').value;
-
-//     if (saveOption === 'none') {
-//         // Save without playlist (maybe to notes)
-//         axios.post(`http://localhost:5000/note/`, {
-//             userId,
-//             videoId,
-//             startTime,
-//             endTime,
-//             note
-//         })
-//         .then(res => {
-//             alert('Clip saved without playlist!');
-//             console.log(res.data);
-//         })
-//         .catch(err => {
-//             alert('Error saving clip without playlist');
-//             console.error(err);
-//         });
-
-//     } else if (saveOption === 'existing') {
-//         const playlistId = document.getElementById('playlistSelect').value;
-//         axios.post(`http://localhost:5000/playlist/addclip/${playlistId}`, {
-//             videoId,
-//             startTime,
-//             endTime,
-//             note
-//         })
-//         .then(res => {
-//             alert('Clip saved to existing playlist!');
-//             console.log(res.data);
-//         })
-//         .catch(err => {
-//             alert('Error saving clip to playlist');
-//             console.error(err);
-//         });
-
-//     } else if (saveOption === 'new') {
-//         const newPlaylistName = document.getElementById('newPlaylistName').value.trim();
-//         if (!newPlaylistName) {
-//             alert('Please enter a new playlist name');
-//             return;
-//         }
-
-//         // First create new playlist
-//         axios.post(`http://localhost:5000/playlist/`, {
-//             userId,
-//             name: newPlaylistName,
-//             description: ''
-//         })
-//         .then(res => {
-//             const newPlaylistId = res.data._id;
-//             // Now add clip to the new playlist
-//             return axios.post(`http://localhost:5000/playlist/addclip/${newPlaylistId}`, {
-//                 videoId,
-//                 startTime,
-//                 endTime,
-//                 note
-//             });
-//         })
-//         .then(res => {
-//             alert('New playlist created and clip added!');
-//             console.log(res.data);
-//         })
-//         .catch(err => {
-//             alert('Error creating playlist or saving clip');
-//             console.error(err);
-//         });
-//     }
-// });
-
-
-
 document.addEventListener("DOMContentLoaded", () => {
-    const container = document.getElementById("playlistContainer");
-    
-    // Assume token saved in chrome.storage or somewhere
-    // Replace with actual userId logic in real use
-    const userId = "YOUR_USER_ID";  // 🟢 Replace with dynamic user id if needed
+    const loginForm = document.getElementById("login-form");
+    const authMessage = document.getElementById("auth-message");
+    const authSection = document.getElementById("auth-section");
+    const userInfoSection = document.getElementById("user-info");
+    const usernameSpan = document.getElementById("username");
+    const logoutBtn = document.getElementById("logout-btn");
 
-    axios.get(`http://localhost:5000/playlist/user/${userId}`)
-        .then(res => {
-            const playlists = res.data;
-            if (playlists.length === 0) {
-                container.innerHTML = "<p>No playlists found.</p>";
+    // Configurable API base URL - use environment variable or default to localhost
+    const API_BASE = "http://localhost:5000"; 
+    console.log(`Using API base: ${API_BASE}`);
+
+    // Check authentication status on load
+    checkAuthStatus();
+
+    // Login form submission handler
+    loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        authMessage.textContent = "Authenticating...";
+        authMessage.style.color = "white";
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+        const role = document.getElementById("role").value;
+
+        if (!email || !password || !role) {
+            authMessage.textContent = "Please fill all fields";
+            authMessage.style.color = "red";
+            return;
+        }
+
+        try {
+            console.log("Attempting login...");
+            const response = await fetch(`${API_BASE}/users/authenticate`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({ email, password, role }),
+            });
+
+            console.log(`Response status: ${response.status}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error("Login failed:", errorData);
+                throw new Error(errorData.message || "Login failed");
+            }
+
+            const result = await response.json();
+            console.log("Login successful, token received");
+
+            // Store token and update UI
+            chrome.storage.local.set({ token: result.token }, () => {
+                authMessage.textContent = "Login successful! Redirecting...";
+                authMessage.style.color = "limegreen";
+                loginForm.reset();
+
+                // Refresh to show user info
+                setTimeout(() => {
+                    checkAuthStatus(true);
+                }, 800);
+            });
+        } catch (error) {
+            console.error("Login error:", error);
+            authMessage.textContent = error.message || "Error connecting to server";
+            authMessage.style.color = "red";
+            
+            // Additional debug info
+            fetch(`${API_BASE}/health`)
+                .then(res => res.json())
+                .then(data => console.log("Server health:", data))
+                .catch(err => console.error("Server health check failed:", err));
+        }
+    });
+
+    // Logout button handler
+    logoutBtn.addEventListener("click", () => {
+        chrome.storage.local.remove(["token", "user"], () => {
+            authSection.style.display = "block";
+            userInfoSection.style.display = "none";
+            authMessage.textContent = "Logged out successfully";
+            authMessage.style.color = "limegreen";
+            setTimeout(() => {
+                authMessage.textContent = "";
+            }, 2000);
+        });
+    });
+
+    // Check authentication status
+    async function checkAuthStatus(forceReload = false) {
+        chrome.storage.local.get(["token", "user"], async (result) => {
+            if (!result.token) {
+                if (forceReload) window.location.reload();
                 return;
             }
-            
-            container.innerHTML = "";
-            playlists.forEach(playlist => {
-                const div = document.createElement("div");
-                div.classList.add("playlist");
 
-                let html = `<div class="playlist-title">${playlist.name}</div>`;
-                if (playlist.clips.length === 0) {
-                    html += `<p>No clips yet.</p>`;
-                } else {
-                    playlist.clips.forEach(clip => {
-                        const videoUrl = `https://www.youtube.com/watch?v=${clip.videoId}&t=${clip.startTime}s`;
-                        html += `<div class="clip">
-                                    <div><strong>Note:</strong> ${clip.note || "—"}</div>
-                                    <a href="${videoUrl}" target="_blank">Watch from ${clip.startTime}s → ${clip.endTime}s</a>
-                                 </div>`;
-                    });
+            try {
+                console.log("Verifying token...");
+                const response = await fetch(`${API_BASE}/users/verify-token`, {
+                    method: "GET",
+                    headers: { 
+                        "Authorization": `Bearer ${result.token}`,
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error("Token verification failed");
                 }
 
-                div.innerHTML = html;
-                container.appendChild(div);
-            });
-        })
-        .catch(err => {
-            console.error(err);
-            container.innerHTML = "<p>Error fetching playlists.</p>";
-        });
-});
+                const data = await response.json();
+                console.log("Token verification result:", data);
 
+                if (data.valid) {
+                    // Store user data for future use
+                    chrome.storage.local.set({ user: data.user }, () => {
+                        authSection.style.display = "none";
+                        userInfoSection.style.display = "block";
+                        usernameSpan.textContent = data.user.name || data.user.email.split('@')[0];
+                        
+                        if (forceReload) {
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    chrome.storage.local.remove(["token", "user"]);
+                }
+            } catch (error) {
+                console.error("Token verification error:", error);
+                chrome.storage.local.remove(["token", "user"]);
+                if (forceReload) {
+                    window.location.reload();
+                }
+            }
+        });
+    }
+});
