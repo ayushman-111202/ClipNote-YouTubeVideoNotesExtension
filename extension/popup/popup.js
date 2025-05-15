@@ -1,139 +1,300 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const loginForm = document.getElementById("login-form");
-    const authMessage = document.getElementById("auth-message");
-    const authSection = document.getElementById("auth-section");
-    const userInfoSection = document.getElementById("user-info");
-    const usernameSpan = document.getElementById("username");
-    const logoutBtn = document.getElementById("logout-btn");
+import CONFIG from '../config.js';
 
-    // Configurable API base URL - use environment variable or default to localhost
-    const API_BASE = "http://localhost:5000"; 
-    console.log(`Using API base: ${API_BASE}`);
+// Track authentication state
+let isAuthenticated = false;
+let currentUser = null;
 
-    // Check authentication status on load
-    checkAuthStatus();
+// DOM Elements
+const loginForm = document.getElementById('login-form');
+const clipsContainer = document.getElementById('clips-container');
+const authContainer = document.getElementById('auth-container');
+const welcomeMessage = document.getElementById('welcome-message');
+const logoutButton = document.getElementById('logout-btn');
+const errorMessage = document.getElementById('error-message');
 
-    // Login form submission handler
-    loginForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        authMessage.textContent = "Authenticating...";
-        authMessage.style.color = "white";
+// Initialize popup
+document.addEventListener('DOMContentLoaded', async () => {
+    await checkAuthStatus();
+    setupEventListeners();
+});
 
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value;
-        const role = document.getElementById("role").value;
+// Check authentication status
+async function checkAuthStatus() {
+    try {
+        const authStatus = await chrome.runtime.sendMessage({ type: 'GET_AUTH_STATUS' });
+        isAuthenticated = authStatus.isAuthenticated;
+        currentUser = authStatus.username || authStatus.email?.split('@')[0];
+        updateUI();
+        
+        if (isAuthenticated) {
+            await fetchUserClips();
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        isAuthenticated = false;
+        currentUser = null;
+        updateUI();
+    }
+}
 
-        if (!email || !password || !role) {
-            authMessage.textContent = "Please fill all fields";
-            authMessage.style.color = "red";
-            return;
+// Set up event listeners
+function setupEventListeners() {
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+    if (logoutButton) {
+        logoutButton.addEventListener('click', handleLogout);
+    }
+}
+
+// Handle login submission
+async function handleLogin(e) {
+    e.preventDefault();
+    
+    try {
+        const email = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        // Clear previous errors and disable form
+        showError('');
+        setFormEnabled(false);
+
+        if (!email || !password) {
+            throw new Error('Please enter both email and password');
         }
 
-        try {
-            console.log("Attempting login...");
-            const response = await fetch(`${API_BASE}/users/authenticate`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
-                },
-                body: JSON.stringify({ email, password, role }),
-            });
-
-            console.log(`Response status: ${response.status}`);
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Login failed:", errorData);
-                throw new Error(errorData.message || "Login failed");
-            }
-
-            const result = await response.json();
-            console.log("Login successful, token received");
-
-            // Store token and update UI
-            chrome.storage.local.set({ token: result.token }, () => {
-                authMessage.textContent = "Login successful! Redirecting...";
-                authMessage.style.color = "limegreen";
-                loginForm.reset();
-
-                // Refresh to show user info
-                setTimeout(() => {
-                    checkAuthStatus(true);
-                }, 800);
-            });
-        } catch (error) {
-            console.error("Login error:", error);
-            authMessage.textContent = error.message || "Error connecting to server";
-            authMessage.style.color = "red";
-            
-            // Additional debug info
-            fetch(`${API_BASE}/health`)
-                .then(res => res.json())
-                .then(data => console.log("Server health:", data))
-                .catch(err => console.error("Server health check failed:", err));
-        }
-    });
-
-    // Logout button handler
-    logoutBtn.addEventListener("click", () => {
-        chrome.storage.local.remove(["token", "user"], () => {
-            authSection.style.display = "block";
-            userInfoSection.style.display = "none";
-            authMessage.textContent = "Logged out successfully";
-            authMessage.style.color = "limegreen";
-            setTimeout(() => {
-                authMessage.textContent = "";
-            }, 2000);
+        const response = await fetch(`${CONFIG.API_URL}/users/authenticate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                email,
+                password,
+                role: 'user' // Always use user role for extension login
+            })
         });
-    });
 
-    // Check authentication status
-    async function checkAuthStatus(forceReload = false) {
-        chrome.storage.local.get(["token", "user"], async (result) => {
-            if (!result.token) {
-                if (forceReload) window.location.reload();
-                return;
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Invalid credentials');
+        }
+
+        const userData = await response.json();
+        
+        // Check if user role is correct
+        if (userData.role !== 'user') {
+            throw new Error('Invalid login attempt. Please use the web portal for admin access.');
+        }
+
+        // Send login success to background script and wait for completion
+        const result = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ 
+                type: 'LOGIN_SUCCESS', 
+                userData 
+            }, (response) => {
+                resolve(response);
+            });
+        });
+
+        if (!result || !result.success) {
+            throw new Error('Failed to save authentication state');
+        }
+        
+        // Update local state only after background script confirms success
+        isAuthenticated = true;
+        currentUser = userData.username || userData.email.split('@')[0];
+        
+        // Clear form
+        loginForm.reset();
+        
+        // Update UI and fetch clips
+        updateUI();
+        await fetchUserClips();
+        
+    } catch (error) {
+        console.error('Login failed:', error);
+        showError(error.message || 'Login failed');
+    } finally {
+        setFormEnabled(true);
+    }
+}
+
+// Handle logout
+async function handleLogout() {
+    try {
+        const result = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ type: 'LOGOUT' }, (response) => {
+                resolve(response);
+            });
+        });
+
+        if (!result || !result.success) {
+            throw new Error('Logout failed');
+        }
+
+        isAuthenticated = false;
+        currentUser = null;
+        updateUI();
+        if (loginForm) {
+            loginForm.reset();
+        }
+        showError('');
+    } catch (error) {
+        console.error('Logout failed:', error);
+        showError('Error during logout');
+    }
+}
+
+// Fetch user's clips
+async function fetchUserClips() {
+    try {
+        const { token, userId } = await chrome.storage.local.get(['token', 'userId']);
+        if (!token || !userId) {
+            throw new Error('Authentication required');
+        }
+
+        const response = await fetch(`${CONFIG.API_URL}/clips/user/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
+        });
 
-            try {
-                console.log("Verifying token...");
-                const response = await fetch(`${API_BASE}/users/verify-token`, {
-                    method: "GET",
-                    headers: { 
-                        "Authorization": `Bearer ${result.token}`,
-                        "Accept": "application/json"
-                    }
-                });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to fetch clips');
+        }
 
-                if (!response.ok) {
-                    throw new Error("Token verification failed");
-                }
+        const clips = await response.json();
+        displayClips(clips);
+    } catch (error) {
+        console.error('Error fetching clips:', error);
+        showError(error.message);
+        
+        // If authentication error, reset state
+        if (error.message.includes('Authentication required') || error.message.includes('Invalid token')) {
+            await handleLogout();
+        }
+    }
+}
 
-                const data = await response.json();
-                console.log("Token verification result:", data);
+// Display clips in popup
+function displayClips(clips) {
+    if (!clipsContainer) return;
 
-                if (data.valid) {
-                    // Store user data for future use
-                    chrome.storage.local.set({ user: data.user }, () => {
-                        authSection.style.display = "none";
-                        userInfoSection.style.display = "block";
-                        usernameSpan.textContent = data.user.name || data.user.email.split('@')[0];
-                        
-                        if (forceReload) {
-                            window.location.reload();
-                        }
-                    });
-                } else {
-                    chrome.storage.local.remove(["token", "user"]);
-                }
-            } catch (error) {
-                console.error("Token verification error:", error);
-                chrome.storage.local.remove(["token", "user"]);
-                if (forceReload) {
-                    window.location.reload();
-                }
-            }
+    if (!clips || clips.length === 0) {
+        clipsContainer.innerHTML = '<p class="no-clips">No clips saved yet</p>';
+        return;
+    }
+
+    const clipsList = clips.map(clip => `
+        <div class="clip-item">
+            <div class="clip-title">${clip.title}</div>
+            <div class="clip-time">
+                ${formatTime(clip.startTime)} - ${formatTime(clip.endTime)}
+            </div>
+            <div class="clip-actions">
+                <button onclick="openYouTubeVideo('${clip.videoID}', '${clip.startTime}')">
+                    Watch
+                </button>
+                <button onclick="deleteClip('${clip._id}')" class="delete">
+                    Delete
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    clipsContainer.innerHTML = clipsList;
+}
+
+// Format time for display
+function formatTime(timeString) {
+    const [hours, minutes, seconds] = timeString.split(':');
+    if (hours === '00') {
+        return `${minutes}:${seconds}`;
+    }
+    return timeString;
+}
+
+// Enable/disable form inputs
+function setFormEnabled(enabled) {
+    if (loginForm) {
+        const inputs = loginForm.querySelectorAll('input, button');
+        inputs.forEach(input => {
+            input.disabled = !enabled;
         });
     }
-});
+}
+
+// Update UI based on authentication state
+function updateUI() {
+    if (authContainer) {
+        authContainer.style.display = isAuthenticated ? 'none' : 'block';
+    }
+    
+    if (clipsContainer) {
+        clipsContainer.style.display = isAuthenticated ? 'block' : 'none';
+        if (!isAuthenticated) {
+            clipsContainer.innerHTML = '';
+        }
+    }
+    
+    if (welcomeMessage) {
+        welcomeMessage.textContent = isAuthenticated 
+            ? `Welcome, ${currentUser}!` 
+            : 'Please log in to manage your clips';
+    }
+    
+    if (logoutButton) {
+        logoutButton.style.display = isAuthenticated ? 'block' : 'none';
+    }
+}
+
+// Show error message
+function showError(message) {
+    if (errorMessage) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = message ? 'block' : 'none';
+    }
+}
+
+// Open YouTube video at specific timestamp
+function openYouTubeVideo(videoId, startTime) {
+    // Convert HH:MM:SS to seconds for the URL parameter
+    const [hours, minutes, seconds] = startTime.split(':').map(Number);
+    const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+    
+    // Create and open the YouTube URL with timestamp
+    const url = `https://www.youtube.com/watch?v=${videoId}&t=${totalSeconds}s`;
+    chrome.tabs.create({ url });
+}
+
+// Make functions available to inline event handlers
+window.openYouTubeVideo = openYouTubeVideo;
+window.deleteClip = deleteClip;
+
+// Delete a clip
+async function deleteClip(clipId) {
+    try {
+        const { token } = await chrome.storage.local.get(['token']);
+        if (!token) {
+            throw new Error('Authentication required');
+        }
+
+        const response = await fetch(`${CONFIG.API_URL}/clips/${clipId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete clip');
+        }
+
+        // Refresh clips list
+        await fetchUserClips();
+    } catch (error) {
+        showError(error.message);
+    }
+}

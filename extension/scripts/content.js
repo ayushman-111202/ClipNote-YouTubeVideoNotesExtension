@@ -1,317 +1,249 @@
-class YouTubeNotesSaver {
-  constructor() {
-    // Use the same API base as popup.js
-    this.API_BASE = "http://localhost:5000";
-    this.API_URL = `${this.API_BASE}/clips/add`;
-    
-    if (window.location.hostname === 'www.youtube.com' && new URLSearchParams(window.location.search).get('v')) {
-      this.initialize();
+// Configuration
+const CONFIG = {
+    API_URL: 'http://localhost:5000',
+    ENDPOINTS: {
+        ADD_CLIP: '/clips/add',  // Changed back to '/clips/add' to match server route
+        GET_USER_CLIPS: '/clips/user',
+        DELETE_CLIP: '/clips/delete',
+        MOVE_CLIP: '/clips/move',
+        LOGIN: '/users/authenticate',
+        VERIFY_TOKEN: '/users/verify-token',
+        GET_USER_PROFILE: '/users/profile'
     }
-  }
+};
 
-  initialize() {
-    this.createFloatingIcon();
-    this.createModal();
-    this.setupEventListeners();
-  }
-
-  createFloatingIcon() {
-    const icon = document.createElement('div');
-    icon.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      background: #ff0000;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: move;
-      z-index: 9999;
-    `;
-    icon.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path fill="#fff" d="M14 10H2v2h12v-2zm0-4H2v2h12V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM2 16h8v-2H2v2z"/></svg>';
-    this.setupDraggable(icon, true);
-    document.body.appendChild(icon);
-  }
-
-  createModal() {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 400px;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      z-index: 10000;
-    `;
-
-    modal.innerHTML = `
-      <div style="cursor: move; margin-bottom: 15px;">
-        <h2 style="margin: 0;">Save Video Portion</h2>
-      </div>
-      <div id="videoInfo" style="margin-bottom: 15px;"></div>
-      <div style="margin-bottom: 10px;">
-        <label>Start Time:</label>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <input type="text" id="startTime" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px;" readonly>
-          <button id="setCurrentStart" style="padding: 8px; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Set Current</button>
-        </div>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label>End Time:</label>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <input type="text" id="endTime" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px;">
-          <button id="setCurrentEnd" style="padding: 8px; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">Set Current</button>
-        </div>
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label>Notes:</label>
-        <textarea id="notes" style="width: 100%; height: 80px; padding: 8px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px;" placeholder="Add your notes here..."></textarea>
-      </div>
-      <div style="margin-bottom: 15px;">
-        <label>Collection:</label>
-        <div style="display: flex; gap: 10px; margin-top: 5px;">
-          <select id="playlist" style="width: 70%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-            <option value="">Select Collection</option>
-            <option value="watch-later">Watch Later</option>
-            <option value="favorites">Favorites</option>
-            <option value="study">Study</option>
-          </select>
-          <button id="newCollection" style="width: 30%; padding: 8px; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">New</button>
-        </div>
-      </div>
-      <div id="auth-message" style="color: red; margin-bottom: 10px; display: none;">
-        Please log in to save clips
-      </div>
-      <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button id="cancelBtn" style="padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; border-radius: 4px; cursor: pointer;">Cancel</button>
-        <button id="saveBtn" style="padding: 8px 16px; background: #ff0000; color: white; border: none; border-radius: 4px; cursor: pointer;">Save</button>
-      </div>
-    `;
-
-    this.setupDraggable(modal, false);
-    document.body.appendChild(modal);
-  }
-
-  setupDraggable(element, isIcon) {
-    let isDragging = false;
-    let currentX;
-    let currentY;
-    let initialX;
-    let initialY;
-
-    const dragHandle = isIcon ? element : element.querySelector('h2').parentElement;
-
-    dragHandle.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      const rect = element.getBoundingClientRect();
-      initialX = e.clientX - rect.left;
-      initialY = e.clientY - rect.top;
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-
-      e.preventDefault();
-      currentX = e.clientX - initialX;
-      currentY = e.clientY - initialY;
-
-      if (isIcon) {
-        currentX = currentX < window.innerWidth / 2 ? 20 : window.innerWidth - 70;
-        currentY = Math.max(50, Math.min(window.innerHeight - 100, currentY));
-      } else {
-        currentX = Math.max(0, Math.min(window.innerWidth - element.offsetWidth, currentX));
-        currentY = Math.max(0, Math.min(window.innerHeight - element.offsetHeight, currentY));
-      }
-
-      element.style.left = `${currentX}px`;
-      element.style.top = `${currentY}px`;
-      element.style.right = 'auto';
-      element.style.bottom = 'auto';
-      element.style.transform = 'none';
-
-      const positionKey = isIcon ? 'iconPosition' : 'modalPosition';
-      localStorage.setItem(positionKey, JSON.stringify({ x: currentX, y: currentY }));
-    });
-
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
-
-    const savedPosition = JSON.parse(localStorage.getItem(isIcon ? 'iconPosition' : 'modalPosition'));
-    if (savedPosition) {
-      element.style.left = `${savedPosition.x}px`;
-      element.style.top = `${savedPosition.y}px`;
-      element.style.right = 'auto';
-      element.style.bottom = 'auto';
-      element.style.transform = 'none';
-    }
-  }
-
-  setupEventListeners() {
-    const icon = document.querySelector('div[style*="position: fixed"]');
-    const modal = document.querySelector('div[style*="width: 400px"]');
-    
-    icon.addEventListener('click', () => this.openModal());
-    modal.querySelector('#cancelBtn').addEventListener('click', () => this.closeModal());
-    modal.querySelector('#saveBtn').addEventListener('click', () => this.saveNote());
-    modal.querySelector('#setCurrentStart').addEventListener('click', () => this.setCurrentTime('start'));
-    modal.querySelector('#setCurrentEnd').addEventListener('click', () => this.setCurrentTime('end'));
-    modal.querySelector('#newCollection').addEventListener('click', () => this.createNewCollection());
-
-    // Add video timeline drag listener
-    const video = document.querySelector('video');
-    if (video) {
-      video.addEventListener('timeupdate', () => {
-        if (modal.style.display === 'block') {
-          const currentTime = this.formatTime(video.currentTime);
-          document.querySelector('#endTime').value = currentTime;
-        }
-      });
-    }
-  }
-
-  getVideoInfo() {
-    return {
-      title: document.title.replace(' - YouTube', ''),
-      videoId: new URLSearchParams(window.location.search).get('v'),
-      currentTime: document.querySelector('video')?.currentTime || 0
-    };
-  }
-
-  formatTime(seconds) {
-    return new Date(seconds * 1000).toISOString().substr(11, 8);
-  }
-
-  async openModal() {
-    const modal = document.querySelector('div[style*="width: 400px"]');
-    const videoInfo = this.getVideoInfo();
-    const currentTime = this.formatTime(videoInfo.currentTime);
-
-    modal.querySelector('#videoInfo').innerHTML = `
-      <p><strong>Title:</strong> ${videoInfo.title}</p>
-      <p><strong>Current Time:</strong> ${currentTime}</p>
-    `;
-
-    modal.querySelector('#startTime').value = currentTime;
-    modal.querySelector('#endTime').value = this.formatTime(videoInfo.currentTime + 30);
-    
-    // Check auth status when opening modal
-    const authStatus = await this.checkAuthStatus();
-    if (!authStatus) {
-      modal.querySelector('#auth-message').style.display = 'block';
-    } else {
-      modal.querySelector('#auth-message').style.display = 'none';
-    }
-    
-    modal.style.display = 'block';
-  }
-
-  setCurrentTime(type) {
-    const video = document.querySelector('video');
-    if (video) {
-      const currentTime = this.formatTime(video.currentTime);
-      document.querySelector(`#${type}Time`).value = currentTime;
-    }
-  }
-
-  createNewCollection() {
-    const collectionName = prompt('Enter new collection name:');
-    if (collectionName) {
-      const playlistSelect = document.querySelector('#playlist');
-      const option = document.createElement('option');
-      option.value = collectionName.toLowerCase().replace(/\s+/g, '-');
-      option.textContent = collectionName;
-      playlistSelect.appendChild(option);
-      playlistSelect.value = option.value;
-    }
-  }
-
-  closeModal() {
-    const modal = document.querySelector('div[style*="width: 400px"]');
-    modal.style.display = 'none';
-    modal.querySelector('#notes').value = '';
-    modal.querySelector('#playlist').value = '';
-    modal.querySelector('#auth-message').style.display = 'none';
-  }
-  
-  // New method to check authentication status
-  async checkAuthStatus() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['token'], (result) => {
-        resolve(!!result.token);
-      });
-    });
-  }
-
-  // Get authentication token
-  async getAuthToken() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['token'], (result) => {
-        resolve(result.token || null);
-      });
-    });
-  }
-
-  async saveNote() {
-    const modal = document.querySelector('div[style*="width: 400px"]');
-    const authMessage = modal.querySelector('#auth-message');
-    
-    // Check auth token
-    const token = await this.getAuthToken();
-    if (!token) {
-      authMessage.textContent = 'Please log in to save clips';
-      authMessage.style.display = 'block';
-      return;
-    }
-    
-    const videoInfo = this.getVideoInfo();
-    const noteData = {
-      videoID: videoInfo.videoId,
-      title: videoInfo.title,
-      note: document.querySelector('#notes').value,
-      startTime: document.querySelector('#startTime').value,
-      endTime: document.querySelector('#endTime').value,
-      playlist: document.querySelector('#playlist').value,
-      createdAt: new Date().toISOString()
-    };
-
-    try {
-      // Include auth token in the request
-      const response = await fetch(this.API_URL, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(noteData)
-      });
-
-      if (response.ok) {
-        alert('Video portion saved successfully!');
-        this.closeModal();
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to save video portion' }));
-        authMessage.textContent = errorData.message || 'Failed to save video portion';
-        authMessage.style.display = 'block';
-      }
-    } catch (error) {
-      console.error('Error saving note:', error);
-      authMessage.textContent = 'Error connecting to server';
-      authMessage.style.display = 'block';
-    }
-  }
+function injectStyles() {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = chrome.runtime.getURL('styles/modal.css');
+    document.head.appendChild(link);
 }
 
-if (document.readyState === 'complete') {
-  new YouTubeNotesSaver();
-} else {
-  window.addEventListener('load', () => new YouTubeNotesSaver());
+function createClipModal() {
+    const modal = document.createElement('div');
+    modal.id = 'clipnote-modal';
+    modal.innerHTML = `
+        <div class="clipnote-modal-content">
+            <div id="login-required-view" style="display: none;">
+                <h2>Login Required</h2>
+                <p style="margin-bottom: 20px; text-align: center;">Please log in from the ClipNote extension popup to save video clips.</p>
+                <div class="modal-buttons">
+                    <button id="close-login-message">Close</button>
+                </div>
+            </div>
+            <div id="clip-form-view" style="display: none;">
+                <h2>Save Video Clip</h2>
+                <input type="text" id="clip-title" placeholder="Title">
+                <textarea id="clip-note" placeholder="Add notes..."></textarea>
+                <div class="time-inputs">
+                    <input type="text" id="start-time" placeholder="Start Time (HH:MM:SS)">
+                    <input type="text" id="end-time" placeholder="End Time (HH:MM:SS)">
+                </div>
+                <div class="modal-buttons">
+                    <button id="save-clip">Save</button>
+                    <button id="cancel-clip">Cancel</button>
+                </div>
+            </div>
+            <div id="clip-error" class="error-message"></div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Add event listeners
+    document.getElementById('save-clip').addEventListener('click', saveClip);
+    document.getElementById('cancel-clip').addEventListener('click', closeModal);
+    document.getElementById('close-login-message').addEventListener('click', closeModal);
+}
+
+async function saveClip() {
+    try {
+        const title = document.getElementById('clip-title').value;
+        const note = document.getElementById('clip-note').value;
+        const startTime = document.getElementById('start-time').value;
+        const endTime = document.getElementById('end-time').value;
+        
+        if (!title) {
+            throw new Error('Title is required');
+        }
+
+        if (!startTime || !endTime) {
+            throw new Error('Start and end times are required');
+        }
+
+        // Get video ID from URL
+        const videoID = new URLSearchParams(window.location.search).get('v');
+        if (!videoID) {
+            throw new Error('Could not find video ID');
+        }
+
+        // Get user token from storage
+        const { token, userId } = await chrome.storage.local.get(['token', 'userId']);
+        console.log('Auth data:', { hasToken: !!token, hasUserId: !!userId });
+        
+        if (!token || !userId) {
+            throw new Error('Please log in to save clips');
+        }
+
+        console.log('Sending clip data:', {
+            title,
+            note,
+            startTime,
+            endTime,
+            videoID,
+            userId
+        });
+
+        const response = await fetch(`${CONFIG.API_URL}${CONFIG.ENDPOINTS.ADD_CLIP}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            },
+            mode: 'cors',
+            body: JSON.stringify({
+                title,
+                note,
+                startTime,
+                endTime,
+                videoID,
+                userId
+            })
+        });
+
+        console.log('Response status:', response.status);
+        const responseData = await response.json();
+        console.log('Response data:', responseData);
+
+        if (!response.ok) {
+            throw new Error(responseData.message || responseData.error || 'Failed to save clip');
+        }
+
+        showSuccess('Clip saved successfully!');
+        closeModal();
+        
+        // Notify background script to update badge
+        chrome.runtime.sendMessage({ type: 'CLIP_SAVED', clip: responseData });
+
+    } catch (error) {
+        console.error('Save clip error:', error);
+        console.error('Error stack:', error.stack);
+        showError(error.message || 'Error saving clip');
+    }
+}
+
+async function showModal(isAuthenticated) {
+    const modal = document.getElementById('clipnote-modal');
+    const loginView = document.getElementById('login-required-view');
+    const clipFormView = document.getElementById('clip-form-view');
+    
+    if (!modal) return;
+
+    if (isAuthenticated) {
+        loginView.style.display = 'none';
+        clipFormView.style.display = 'block';
+        
+        // Set up clip form with video details
+        const video = document.querySelector('video');
+        if (video) {
+            const videoTitle = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent?.trim() || '';
+            document.getElementById('clip-title').value = videoTitle;
+            document.getElementById('start-time').value = formatTime(Math.floor(video.currentTime));
+            document.getElementById('end-time').value = formatTime(Math.floor(video.currentTime + 30)); // Default 30 sec clip
+        }
+    } else {
+        loginView.style.display = 'block';
+        clipFormView.style.display = 'none';
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function showError(message) {
+    const errorElement = document.getElementById('clip-error');
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+        errorElement.classList.remove('success');
+    }
+}
+
+function showSuccess(message) {
+    const errorElement = document.getElementById('clip-error');
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+        errorElement.classList.add('success');
+        setTimeout(() => {
+            errorElement.style.display = 'none';
+        }, 3000);
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById('clipnote-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Format timestamp to HH:MM:SS
+function formatTime(seconds) {
+    const date = new Date(0);
+    date.setSeconds(seconds);
+    return date.toISOString().substr(11, 8);
+}
+
+// Initialize when on YouTube
+if (window.location.hostname.includes('youtube.com')) {
+    // Wait for YouTube to be ready
+    const init = () => {
+        injectStyles();
+        createClipModal();
+        
+        // Add floating clip button
+        function addFloatingButton() {
+            if (!document.querySelector('#clipnote-floating-button')) {
+                const clipButton = document.createElement('button');
+                clipButton.id = 'clipnote-floating-button';
+                clipButton.title = 'Save Clip';
+                clipButton.innerHTML = '<svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM15 12l-4 4h3v4h2v-4h3l-4-4zm-8-4V4h2v4h3l-4 4-4-4h3z"/></svg>';
+                
+                clipButton.addEventListener('click', async () => {
+                    try {
+                        const { token, userId } = await chrome.storage.local.get(['token', 'userId']);
+                        await showModal(!!token && !!userId);
+                    } catch (error) {
+                        showError(error.message);
+                    }
+                });
+                document.body.appendChild(clipButton);
+            }
+        }
+
+        // Add the floating button immediately
+        addFloatingButton();
+    };
+
+    // Check if we're on a video page
+    if (window.location.pathname === '/watch') {
+        init();
+    }
+
+    // Also listen for navigation changes
+    const handleURLChange = () => {
+        if (window.location.pathname === '/watch') {
+            init();
+        } else {
+            // Remove the floating button when not on a video page
+            const floatingButton = document.querySelector('#clipnote-floating-button');
+            if (floatingButton) {
+                floatingButton.remove();
+            }
+        }
+    };
+
+    // Listen for YouTube's navigation events
+    window.addEventListener('yt-navigate-finish', handleURLChange);
 }

@@ -72,7 +72,16 @@ router.post('/authenticate', async (req, res) => {
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '6h' });
-        res.status(200).json({ token, role: user.role });
+        
+        // Send complete response
+        res.status(200).json({
+            token,
+            _id: user._id,
+            email: user.email,
+            role: user.role,
+            name: user.name,
+            username: user.username
+        });
     } catch (err) {
         console.error('Authentication error:', err);
         res.status(500).json({ message: 'Server error during authentication' });
@@ -80,34 +89,76 @@ router.post('/authenticate', async (req, res) => {
 });
 
 // Verify token endpoint
-// router.get('/verify-token', async (req, res) => {
-//     try {
-//         // Get token from header
-//         const token = req.header('Authorization')?.replace('Bearer ', '');
+router.get('/verify-token', verifyToken, async (req, res) => {
+    try {
+        // Token is already verified by middleware
+        const user = await UserModel.findById(req.user._id).select('-password');
         
-//         if (!token) {
-//             return res.json({ valid: false });
-//         }
+        if (!user) {
+            return res.status(404).json({ valid: false, message: 'User not found' });
+        }
 
-//         // Verify token
-//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-//         // Find user
-//         const user = await UserModel.findById(decoded._id);
-        
-//         if (!user) {
-//             return res.json({ valid: false });
-//         }
-
-//         res.json({ valid: true, user: { id: user._id, role: user.role } });
-//     } catch (error) {
-//         console.error('Token verification error:', error);
-//         res.json({ valid: false });
-//     }
-// });
+        res.json({ 
+            valid: true,
+            user: {
+                _id: user._id,
+                email: user.email,
+                role: user.role,
+                name: user.name,
+                username: user.username
+            }
+        });
+    } catch (error) {
+        console.error('Token verification error:', error);
+        res.status(500).json({ valid: false, message: 'Error verifying token' });
+    }
+});
 
 // Protected routes (authentication required)
 router.use(userCheck);
+
+// Get user dashboard data
+router.get('/dashboard', async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        // Get total clips
+        const clips = await require('../models/ClipModel').find({ userId });
+        const totalClips = clips.length;
+        const recentClips = clips.sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+
+        // Get total playlists
+        const PlaylistModel = require('../models/PlaylistModel');
+        const playlists = await PlaylistModel.find({ userId }).populate('clips');
+        const totalPlaylists = playlists.length;
+        const recentPlaylists = playlists.sort((a, b) => b.updatedAt - a.createdAt).slice(0, 5);
+
+        // Calculate total watch time from HH:MM:SS format
+        const watchTime = clips.reduce((total, clip) => {
+            const getSeconds = (timeStr) => {
+                const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+                return hours * 3600 + minutes * 60 + seconds;
+            };
+            
+            const startSeconds = getSeconds(clip.startTime);
+            const endSeconds = getSeconds(clip.endTime);
+            return total + (endSeconds - startSeconds);
+        }, 0);
+
+        res.json({
+            recentClips,
+            recentPlaylists,
+            stats: {
+                totalClips,
+                totalPlaylists,
+                watchTime
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        res.status(500).json({ message: 'Error fetching dashboard data' });
+    }
+});
 
 // Get user profile
 router.get('/profile', async (req, res) => {
@@ -159,20 +210,6 @@ router.post('/change-password', async (req, res) => {
         console.error('Error changing password:', error);
         res.status(500).json({ message: 'Error changing password' });
     }
-});
-
-// Verify token endpoint
-router.get('/verify-token', verifyToken, (req, res) => {
-    res.json({ 
-        valid: true, 
-        user: {
-            _id: req.user._id,
-            email: req.user.email,
-            role: req.user.role,
-            name: req.user.name,
-            username: req.user.username
-        }
-    });
 });
 
 module.exports = router;

@@ -1,12 +1,17 @@
 const express = require('express');
 const Model = require('../models/PlaylistModel');
+const verifyToken = require('../middlewares/verifyToken');
 const router = express.Router();
+
+// Apply authentication middleware to all playlist routes
+router.use(verifyToken);
 
 // Add a new playlist
 router.post('/add', async (req, res) => {
     try {
         const playlist = new Model({
             ...req.body,
+            userId: req.user._id, // Add the authenticated user's ID
             clips: [],
             createdAt: new Date(),
             updatedAt: new Date()
@@ -30,13 +35,37 @@ router.get('/getall', (req, res) => {
         });
 });
 
-// Get playlists by userId with populated clips
+// Get playlists by userId with populated clips, search, and pagination
 router.get('/getbyuser/:userId', async (req, res) => {
     try {
-        const result = await Model.find({ userId: req.params.userId })
+        const { search = '', sortBy = 'updatedAt', order = 'desc', page = 1, limit = 10 } = req.query;
+        const skip = (page - 1) * limit;
+
+        // Build query
+        const query = { userId: req.params.userId };
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Get total count for pagination
+        const total = await Model.countDocuments(query);
+
+        // Get playlists with pagination and sorting
+        const result = await Model.find(query)
             .populate('clips')
-            .sort({ updatedAt: -1 });
-        res.status(200).json(result);
+            .sort({ [sortBy]: order === 'desc' ? -1 : 1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        res.status(200).json({
+            playlists: result,
+            total,
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: err.message });

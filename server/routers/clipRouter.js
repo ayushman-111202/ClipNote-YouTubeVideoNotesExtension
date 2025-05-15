@@ -1,7 +1,11 @@
 const express = require('express');
 const Model = require('../models/ClipModel');
 const PlaylistModel = require('../models/PlaylistModel');
+const verifyToken = require('../middlewares/verifyToken');
 const router = express.Router();
+
+// Apply authentication middleware to all clip routes
+router.use(verifyToken);
 
 // Add a new clip (with optional playlist)
 router.post('/add', async (req, res) => {
@@ -9,6 +13,10 @@ router.post('/add', async (req, res) => {
         const clipData = { ...req.body };
         const playlistId = clipData.playlistId;
         
+        if (!clipData.title || !clipData.startTime || !clipData.endTime || !clipData.videoID || !clipData.userId) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
         // Save the clip
         const newClip = await new Model(clipData).save();
 
@@ -26,8 +34,8 @@ router.post('/add', async (req, res) => {
 
         res.status(200).json(newClip);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
+        console.error('Clip creation error:', err);
+        res.status(500).json({ error: err.message || 'Error creating clip' });
     }
 });
 

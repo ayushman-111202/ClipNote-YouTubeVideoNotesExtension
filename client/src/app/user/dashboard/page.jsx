@@ -59,6 +59,11 @@ export default function Dashboard() {
     return `${hours}h ${minutes}m`
   }
 
+  const convertTimeToSeconds = (timeStr) => {
+    const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[calc(100vh-4rem)]">
@@ -187,7 +192,7 @@ export default function Dashboard() {
               <div key={clip._id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
                 <div className="flex items-start gap-4">
                   <img
-                    src={`https://img.youtube.com/vi/${clip.videoId}/default.jpg`}
+                    src={`https://img.youtube.com/vi/${clip.videoID}/default.jpg`}
                     alt={clip.title}
                     className="w-24 h-18 object-cover rounded"
                   />
@@ -200,7 +205,7 @@ export default function Dashboard() {
                     </p>
                   </div>
                   <a
-                    href={`https://youtube.com/watch?v=${clip.videoId}&t=${clip.startTime}`}
+                    href={`https://youtube.com/watch?v=${clip.videoID}&t=${convertTimeToSeconds(clip.startTime)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"

@@ -32,11 +32,13 @@ export default function Playlists() {
     sortBy: 'date',
     order: 'desc'
   })
+  const [isEditing, setIsEditing] = useState(false)
+  const [editingPlaylist, setEditingPlaylist] = useState(null)
 
   const fetchPlaylists = async (page = 1) => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/playlists`,
+        `${process.env.NEXT_PUBLIC_API_URL}/playlists/getbyuser/${user?.id}`,
         {
           params: {
             page,
@@ -48,15 +50,17 @@ export default function Playlists() {
             Authorization: `Bearer ${user?.token}`
           }
         }
-      )
-      setPlaylists(response.data.playlists)
-      setTotalPages(response.data.totalPages)
-      setCurrentPage(page)
+      );
+      
+      const { playlists, totalPages: total, currentPage } = response.data;
+      setPlaylists(playlists);
+      setTotalPages(total);
+      setCurrentPage(currentPage);
+      setLoading(false);
     } catch (err) {
-      setError(err.response?.data?.message || 'Error fetching playlists')
-      toast.error('Failed to fetch playlists')
-    } finally {
-      setLoading(false)
+      setError(err.response?.data?.message || 'Error fetching playlists');
+      toast.error('Failed to fetch playlists');
+      setLoading(false);
     }
   }
 
@@ -76,8 +80,11 @@ export default function Playlists() {
     e.preventDefault()
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/playlists`,
-        newPlaylist,
+        `${process.env.NEXT_PUBLIC_API_URL}/playlists/add`,
+        {
+          ...newPlaylist,
+          userId: user?.id
+        },
         {
           headers: {
             Authorization: `Bearer ${user?.token}`
@@ -100,7 +107,7 @@ export default function Playlists() {
 
     try {
       await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/playlists/${playlistId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/playlists/delete/${playlistId}`,
         {
           headers: {
             Authorization: `Bearer ${user?.token}`
@@ -111,6 +118,40 @@ export default function Playlists() {
       toast.success('Playlist deleted successfully')
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error deleting playlist')
+    }
+  }
+
+  const handleEditPlaylist = async (playlistId) => {
+    const playlist = playlists.find(p => p._id === playlistId)
+    if (playlist) {
+      setEditingPlaylist(playlist)
+      setNewPlaylist({
+        name: playlist.name,
+        description: playlist.description || ''
+      })
+      setIsCreating(true)
+    }
+  }
+
+  const handleUpdatePlaylist = async (e) => {
+    e.preventDefault()
+    try {
+      await axios.patch(
+        `${process.env.NEXT_PUBLIC_API_URL}/playlists/update/${editingPlaylist._id}`,
+        newPlaylist,
+        {
+          headers: {
+            Authorization: `Bearer ${user?.token}`
+          }
+        }
+      )
+      setIsCreating(false)
+      setEditingPlaylist(null)
+      setNewPlaylist({ name: '', description: '' })
+      fetchPlaylists(currentPage)
+      toast.success('Playlist updated successfully')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error updating playlist')
     }
   }
 
@@ -191,7 +232,7 @@ export default function Playlists() {
           {/* Create Playlist Form */}
           {isCreating && (
             <div className="mt-6">
-              <form onSubmit={handleCreatePlaylist} className="space-y-4">
+              <form onSubmit={editingPlaylist ? handleUpdatePlaylist : handleCreatePlaylist} className="space-y-4">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Playlist Name
@@ -222,6 +263,7 @@ export default function Playlists() {
                     type="button"
                     onClick={() => {
                       setIsCreating(false)
+                      setEditingPlaylist(null)
                       setNewPlaylist({ name: '', description: '' })
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:hover:bg-gray-600"
@@ -232,7 +274,7 @@ export default function Playlists() {
                     type="submit"
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    Create
+                    {editingPlaylist ? 'Update' : 'Create'}
                   </button>
                 </div>
               </form>

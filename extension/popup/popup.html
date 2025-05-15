@@ -1,31 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ClipNote Login</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="popup.css">
+    <meta charset="UTF-8">
+    <title>ClipNote</title>
+    <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div id="auth-section">
-    <h2>Login</h2>
-    <form id="login-form">
-      <input type="email" id="email" placeholder="Email" required />
-      <input type="password" id="password" placeholder="Password" required />
-      <select id="role" required>
-        <option value="">Select Role</option>
-        <option value="user">User</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button type="submit">Login</button>
-    </form>
-    <div id="auth-message"></div>
-  </div>
+    <div class="popup-container">
+        <div class="header">
+            <img src="../assets/icon-48.png" alt="ClipNote Logo" class="logo">
+            <h1>ClipNote</h1>
+        </div>
 
-  <div id="user-info" style="display: none;">
-    <p>Welcome, <span id="username"></span>!</p>
-    <button id="logout-btn">Logout</button>
-  </div>
+        <div id="error-message" class="error-message"></div>
+        <p id="welcome-message">Please log in to manage your clips</p>
 
-  <script src="popup.js"></script>
+        <div id="auth-container">
+            <form id="login-form">
+                <input type="email" id="username" placeholder="Email address" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+            <p class="signup-link">
+                Don't have an account? 
+                <a href="http://localhost:3000/signup" target="_blank">Sign up</a>
+            </p>
+        </div>
+
+        <div id="clips-container" class="clips-container">
+            <!-- Clips will be dynamically inserted here -->
+        </div>
+
+        <div class="footer">
+            <button id="logout-btn" class="logout-button">Logout</button>
+            <a href="http://localhost:3000/user/dashboard" target="_blank" class="dashboard-link">
+                Go to Dashboard
+            </a>
+        </div>
+    </div>
+    <script type="module" src="popup.js"></script>
 </body>
 </html>

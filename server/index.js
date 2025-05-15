@@ -14,26 +14,13 @@ const feedbackRouter = require('./routers/feedbackRouter');
 const app = express();
 
 // Middleware
-const allowedOrigins = [
-    "chrome-extension://ebpbepkddpjhhjgbdookboidhhmihbbp", // Allow all extensions (for development)
-    "http://127.0.0.1:5000",
-    "http://localhost:5000",
-    "http://localhost:3000"
-  ];
-
-
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS: " + origin));
-    }
-  },
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  methods: ['GET', 'POST', 'PATCH', 'DELETE']
+    origin: function(origin, callback) {
+        callback(null, true); // Allow all origins during development
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
 }));
 
 app.use(express.json());

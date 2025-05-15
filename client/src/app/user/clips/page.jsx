@@ -32,22 +32,23 @@ export default function Clips() {
   const fetchClips = async (page = 1) => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/clips`,
+        `${process.env.NEXT_PUBLIC_API_URL}/clips/user/${user?.id}`,
         {
-          params: {
-            page,
-            search: searchTerm,
-            sortBy: filters.sortBy,
-            order: filters.order
-          },
           headers: {
             Authorization: `Bearer ${user?.token}`
           }
         }
       )
-      setClips(response.data.clips)
-      setTotalPages(response.data.totalPages)
-      setCurrentPage(page)
+      if (Array.isArray(response.data)) {
+        setClips(response.data)
+        // For now, no pagination since the server endpoint doesn't support it yet
+        setTotalPages(1)
+        setCurrentPage(1)
+      } else {
+        setClips([])
+        setTotalPages(1)
+        setCurrentPage(1)
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Error fetching clips')
       toast.error('Failed to fetch clips')
@@ -89,10 +90,24 @@ export default function Clips() {
     }
   }
 
-  const formatDuration = (seconds) => {
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = seconds % 60
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  const formatDuration = (start, end) => {
+    const getSeconds = (timeStr) => {
+      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+      return hours * 3600 + minutes * 60 + seconds;
+    };
+    
+    const startSeconds = getSeconds(start);
+    const endSeconds = getSeconds(end);
+    const totalSeconds = endSeconds - startSeconds;
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+
+  const convertTimeToSeconds = (timeStr) => {
+    const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+    return hours * 3600 + minutes * 60 + seconds;
   }
 
   if (loading) {
@@ -138,27 +153,6 @@ export default function Clips() {
               </button>
             </form>
           </div>
-
-          {/* Filters */}
-          <div className="mt-4 flex flex-wrap gap-4">
-            <select
-              value={filters.sortBy}
-              onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="date">Sort by Date</option>
-              <option value="title">Sort by Title</option>
-              <option value="duration">Sort by Duration</option>
-            </select>
-            <select
-              value={filters.order}
-              onChange={(e) => setFilters({ ...filters, order: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            >
-              <option value="desc">Descending</option>
-              <option value="asc">Ascending</option>
-            </select>
-          </div>
         </div>
 
         {/* Clips Grid */}
@@ -170,12 +164,12 @@ export default function Clips() {
             >
               <div className="relative">
                 <img
-                  src={`https://img.youtube.com/vi/${clip.videoId}/mqdefault.jpg`}
+                  src={`https://img.youtube.com/vi/${clip.videoID}/mqdefault.jpg`}
                   alt={clip.title}
                   className="w-full h-48 object-cover"
                 />
                 <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 px-2 py-1 rounded text-white text-sm">
-                  {formatDuration(clip.duration)}
+                  {formatDuration(clip.startTime, clip.endTime)}
                 </div>
               </div>
               <div className="p-4">
@@ -187,7 +181,7 @@ export default function Clips() {
                 </p>
                 <div className="mt-4 flex justify-between items-center">
                   <a
-                    href={`https://youtube.com/watch?v=${clip.videoId}&t=${clip.startTime}`}
+                    href={`https://youtube.com/watch?v=${clip.videoID}&t=${convertTimeToSeconds(clip.startTime)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
