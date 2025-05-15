@@ -1,243 +1,196 @@
-// "use client"
-// import React from 'react';
-// import { IconAlbum, IconBrandYoutube, IconHome2, IconLogin2, IconSearch, IconUserCircle } from '@tabler/icons-react';
-// import Link from 'next/link';
+'use client'
+import { useState } from 'react'
+import { useAuth } from '@/context/AuthContext'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+import ThemeToggle from '@/components/ThemeToggle'
+import {
+  IconHome,
+  IconVideo,
+  IconPlaylist,
+  IconSearch,
+  IconUser,
+  IconLogout,
+  IconMenu2,
+  IconX,
+  IconLayoutDashboard,
+  IconUsers,
+  IconUserPlus
+} from '@tabler/icons-react'
 
-// const Navbar = ({ children }) => {
-//     return (
-//         <div className='z-999 dark:bg-gray-900'>
-//             <nav className='px-2 bg-blue-200 h-[3rem] flex items-center justify-between dark:bg-gray-800'>
-//                 <div className='order-1'>
-//                     <Link className='flex items-center justify-center' href='/'>
-//                         <img className='h-10 w-10' src="/logo_clipnote.png" alt="logo" />
-//                         <h1 className='hidden md:text-md font-bold px-1 text-rose-700 dark:text-rose-300'>ClipNote</h1>
-//                     </Link>
-//                 </div>
+export default function Navbar() {
+  const { user, logout } = useAuth()
+  const pathname = usePathname()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-//                 <div className='hidden md:flex items-center justify-center gap-4 order-2'>
-//                     <ul className='flex items-center justify-center gap-4 xl:gap-8'>
-//                         <Link className='hover:border-b-2 hover:border-red-700 dark:hover:border-red-300 dark:text-gray-200' href='/about'>About</Link>
-//                         <Link className='hover:border-b-2 hover:border-red-700 dark:hover:border-red-300 dark:text-gray-200' href='/user/notes'>Notes</Link>
-//                         <Link className='hover:border-b-2 hover:border-red-700 dark:hover:border-red-300 dark:text-gray-200' href='/room'>Home</Link>
-//                         <Link className='hover:border-b-2 hover:border-red-700 dark:hover:border-red-300 dark:text-gray-200' href='/guide'>Guide</Link>
-//                         <Link className='hover:border-b-2 hover:border-red-700 dark:hover:border-red-300 dark:text-gray-200' href='/premium'>Premium</Link>
-//                         <Link className='hover:border-b-2 hover:border-red-700 dark:hover:border-red-300 dark:text-gray-200' href='/contact'>Contact</Link>
-//                     </ul>
+  const userNavigation = [
+    { name: 'Dashboard', href: '/user/dashboard', icon: IconHome },
+    { name: 'My Clips', href: '/user/clips', icon: IconVideo },
+    { name: 'My Playlists', href: '/user/playlists', icon: IconPlaylist },
+    { name: 'Search', href: '/user/search', icon: IconSearch },
+    { name: 'Profile', href: '/user/profile', icon: IconUser },
+  ]
 
-//                     <div className='flex items-center justify-center gap-4'>
-//                         <input
-//                             type="search"
-//                             placeholder="Search"
-//                             className='rounded-md p-1 dark:bg-gray-700 dark:text-white dark:placeholder-gray-300'
-//                         />
-//                         <button>
-//                             <IconSearch strokeWidth={4} className='text-white dark:text-gray-200' />
-//                         </button>
-//                     </div>
-//                 </div>
+  const adminNavigation = [
+    { name: 'Dashboard', href: '/admin/dashboard', icon: IconLayoutDashboard },
+    { name: 'Manage Users', href: '/admin/manage-users', icon: IconUsers },
+    { name: 'Register Admin', href: '/admin/register-admin', icon: IconUserPlus },
+  ]
 
-//                 <div className='flex items-center justify-center gap-2 order-2 md:hidden'>
-//                     <input
-//                         type="search"
-//                         placeholder="Search"
-//                         className='rounded-md p-1 dark:bg-gray-700 dark:text-white dark:placeholder-gray-300'
-//                     />
-//                     <button>
-//                         <IconSearch strokeWidth={4} className='text-white dark:text-gray-200' />
-//                     </button>
-//                 </div>
+  const publicNavigation = [
+    { href: '/', label: 'Home' },
+    { href: '/about', label: 'About' },
+    { href: '/guide', label: 'Guide' },
+    { href: '/contact', label: 'Contact' },
+  ]
 
-//                 <div className='hidden md:flex items-center justify-center gap-4 order-3'>
-//                     <Link href='/login'>
-//                         <button className='flex items-center justify-center gap-1 p-1.5 px-3 rounded-lg font-semibold bg-green-400 text-white dark:bg-green-600 dark:text-gray-200'>
-//                             Login <IconLogin2 />
-//                         </button>
-//                     </Link>
-//                     <Link href='/signup'>
-//                         <button className='flex items-center justify-center gap-1 p-1.5 px-3 rounded-lg font-semibold bg-green-400 text-white dark:bg-green-600 dark:text-gray-200'>
-//                             Signup <IconLogin2 />
-//                         </button>
-//                     </Link>
-//                     {children}
-//                 </div>
-//             </nav>
+  const isActive = (path) => pathname === path
 
-//             <div className='fixed w-full h-[4rem] bottom-0 bg-blue-500 flex items-center justify-evenly text-blue-200 md:hidden dark:bg-gray-800 dark:text-gray-200'>
-//                 <ul className='flex items-center w-full justify-evenly gap-4 xl:gap-8'>
-//                     <Link className='hover:border-b-2 hover:border-purple-200 dark:hover:border-purple-400' href='/room'>
-//                         <IconHome2 size={40} />
-//                     </Link>
-//                     <Link className='hover:border-b-2 hover:border-purple-200 dark:hover:border-purple-400' href='/search'>
-//                         <IconSearch size={38} />
-//                     </Link>
-//                     <Link className='hover:border-b-2 hover:border-purple-200 dark:hover:border-purple-400' href='https://www.youtube.com' target='_blank'>
-//                         <IconBrandYoutube size={38} className='font-extrabold' />
-//                     </Link>
-//                     <Link className='hover:border-b-2 hover:border-purple-200 dark:hover:border-purple-400' href='/user/notes'>
-//                         <IconAlbum size={40} />
-//                     </Link>
-//                     <Link className='hover:border-b-2 hover:border-purple-200 dark:hover:border-purple-400' href='/user-profile'>
-//                         <IconUserCircle size={40} />
-//                     </Link>
-//                 </ul>
-//             </div>
-//         </div>
-//     );
-// };
+  const renderNavLinks = () => {
+    if (!user) return publicNavigation
+    return user.role === 'admin' ? adminNavigation : userNavigation
+  }
 
-// export default Navbar;
+  const currentNavigation = renderNavLinks()
 
+  return (
+    <nav className="fixed top-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
+      <div className="px-3 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              type="button"
+              className="inline-flex items-center p-2 text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600"
+            >
+              <span className="sr-only">Open menu</span>
+              {isMenuOpen ? (
+                <IconX className="w-6 h-6" />
+              ) : (
+                <IconMenu2 className="w-6 h-6" />
+              )}
+            </button>
 
-"use client"
-import React, { useState } from 'react';
-import { IconAlbum, IconBrandYoutube, IconHome2, IconLogin2, IconSearch, IconUserCircle, IconNotes, IconSettings, IconMenu2, IconX } from '@tabler/icons-react';
-import Link from 'next/link';
+            {/* Logo */}
+            <Link href="/" className="flex items-center ml-2">
+              <img
+                src="/logo_clipnote.png"
+                className="h-8 w-auto mr-3"
+                alt="ClipNote Logo"
+              />
+              <span className="self-center text-xl font-semibold text-gray-900 dark:text-white">
+                {user?.role === 'admin' ? 'Admin Panel' : 'ClipNote'}
+              </span>
+            </Link>
+          </div>
 
-const Navbar = ({ children }) => {
-    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-    return (
-        <div className='z-50 relative bg-white dark:bg-gray-800 shadow-md'>
-            <nav className='px-4 sm:px-6 h-16 flex items-center justify-between'>
-                <div className='flex items-center'>
-                    <Link className='flex items-center justify-center' href='/'>
-                        <img className='h-8 w-8 sm:h-10 sm:w-10' src="/logo_clipnote.png" alt="logo" />
-                        <h1 className='text-lg sm:text-xl font-bold px-1 text-gray-800 dark:text-white'>ClipNote</h1>
-                    </Link>
-                </div>
-
-                {/* Desktop Navigation */}
-                <div className='hidden lg:flex items-center justify-center gap-4 flex-1 max-w-2xl ml-8'>
-                    <ul className='flex items-center justify-center gap-4 xl:gap-8 flex-1'>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200' href='/room'>Home</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200' href='/about'>About</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200' href='/user/notes'>Notes</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200' href='/guide'>Guide</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200' href='/premium'>Premium</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200' href='/contact'>Contact</Link>
-                    </ul>
-                </div>
-
-                {/* Desktop Search */}
-                <div className='hidden md:flex items-center justify-end gap-2 flex-1'>
-                    <div className='relative max-w-xs w-full'>
-                        <input
-                            type="search"
-                            placeholder="Search"
-                            className='w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400'
-                        />
-                        <IconSearch className='absolute left-3 top-2.5 text-gray-500 dark:text-gray-400' size={18} />
-                    </div>
-                </div>
-
-                {/* Mobile Search Toggle */}
-                <div className='flex md:hidden items-center ml-auto mr-2'>
-                    <button
-                        onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                        className='p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors'
-                    >
-                        <IconSearch size={20} className='text-gray-600 dark:text-gray-300' />
-                    </button>
-                </div>
-
-                {/* Mobile Menu Toggle */}
-                <div className='flex lg:hidden items-center'>
-                    <button
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        className='p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors'
-                    >
-                        {mobileMenuOpen ?
-                            <IconX size={20} className='text-gray-600 dark:text-gray-300' /> :
-                            <IconMenu2 size={20} className='text-gray-600 dark:text-gray-300' />
-                        }
-                    </button>
-                </div>
-
-                {/* Desktop Auth Buttons */}
-                <div className='hidden md:flex items-center justify-center gap-3 ml-4'>
-                    <Link href='/login'>
-                        <button className='flex items-center justify-center gap-1 py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-sm sm:text-base font-medium bg-blue-500 text-white hover:bg-blue-600 transition duration-200 dark:bg-blue-600 dark:hover:bg-blue-700'>
-                            Login <IconLogin2 size={18} className="hidden sm:block" />
-                        </button>
-                    </Link>
-                    <Link href='/signup'>
-                        <button className='flex items-center justify-center gap-1 py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg text-sm sm:text-base font-medium bg-green-500 text-white hover:bg-green-600 transition duration-200 dark:bg-green-600 dark:hover:bg-green-700'>
-                            Signup <IconUserCircle size={18} className="hidden sm:block" />
-                        </button>
-                    </Link>
-                    {children}
-                </div>
-            </nav>
-
-            {/* Mobile Search Bar (Expandable) */}
-            {mobileSearchOpen && (
-                <div className='md:hidden px-4 py-3 bg-gray-50 dark:bg-gray-700 border-t border-b border-gray-200 dark:border-gray-600'>
-                    <div className='relative'>
-                        <input
-                            type="search"
-                            placeholder="Search ClipNote..."
-                            className='w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400'
-                            autoFocus
-                        />
-                        <IconSearch className='absolute left-3 top-2.5 text-gray-500 dark:text-gray-400' size={18} />
-                    </div>
-                </div>
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex md:items-center md:space-x-4">
+            {user && currentNavigation.map((item) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${
+                    isActive(item.href)
+                      ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                  }`}
+                >
+                  {Icon && <Icon className="w-5 h-5 mr-2" />}
+                  {item.name}
+                </Link>
+              )
+            })}
+            {!user && currentNavigation.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white px-3 py-2 rounded-lg text-sm font-medium"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <div className="h-6 w-px bg-gray-200 dark:bg-gray-700" />
+            <ThemeToggle />
+            {!user ? (
+              <>
+                <Link
+                  href="/login"
+                  className="text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white px-3 py-2 rounded-lg text-sm font-medium"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/signup"
+                  className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-lg text-sm font-medium"
+                >
+                  Sign up
+                </Link>
+              </>
+            ) : (
+              <button
+                onClick={logout}
+                className="flex items-center text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white px-3 py-2 rounded-lg text-sm font-medium"
+              >
+                <IconLogout className="w-5 h-5 mr-2" />
+                Logout
+              </button>
             )}
-
-            {/* Mobile Menu Dropdown */}
-            {mobileMenuOpen && (
-                <div className='lg:hidden px-4 py-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg'>
-                    <ul className='flex flex-col space-y-2 py-2'>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200 py-2' href='/room' onClick={() => setMobileMenuOpen(false)}>Home</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200 py-2' href='/about' onClick={() => setMobileMenuOpen(false)}>About</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200 py-2' href='/user/notes' onClick={() => setMobileMenuOpen(false)}>Notes</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200 py-2' href='/guide' onClick={() => setMobileMenuOpen(false)}>Guide</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200 py-2' href='/premium' onClick={() => setMobileMenuOpen(false)}>Premium</Link>
-                        <Link className='text-gray-600 hover:text-blue-500 font-medium dark:text-gray-300 dark:hover:text-blue-400 transition duration-200 py-2' href='/contact' onClick={() => setMobileMenuOpen(false)}>Contact</Link>
-                    </ul>
-                    <div className='flex items-center justify-center gap-4 py-4 border-t border-gray-200 dark:border-gray-700 mt-2 md:hidden'>
-                        <Link href='/login' className='w-full' onClick={() => setMobileMenuOpen(false)}>
-                            <button className='w-full flex items-center justify-center gap-1 py-2 px-4 rounded-lg font-medium bg-blue-500 text-white hover:bg-blue-600 transition duration-200 dark:bg-blue-600 dark:hover:bg-blue-700'>
-                                Login <IconLogin2 size={18} />
-                            </button>
-                        </Link>
-                        <Link href='/signup' className='w-full' onClick={() => setMobileMenuOpen(false)}>
-                            <button className='w-full flex items-center justify-center gap-1 py-2 px-4 rounded-lg font-medium bg-green-500 text-white hover:bg-green-600 transition duration-200 dark:bg-green-600 dark:hover:bg-green-700'>
-                                Signup <IconUserCircle size={18} />
-                            </button>
-                        </Link>
-                    </div>
-                </div>
-            )}
-
-            {/* Mobile Bottom Navigation */}
-            <div className='fixed w-full h-16 bottom-0 bg-white border-t border-gray-200 flex items-center justify-evenly text-gray-600 md:hidden dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 shadow-lg z-50'>
-                <ul className='flex items-center w-full justify-evenly'>
-                    <Link className='flex flex-col items-center justify-center p-2 hover:text-blue-500 dark:hover:text-blue-400 transition duration-200' href='/room'>
-                        <IconHome2 size={22} />
-                        <span className='text-xs mt-1'>Home</span>
-                    </Link>
-                    <Link className='flex flex-col items-center justify-center p-2 hover:text-blue-500 dark:hover:text-blue-400 transition duration-200' href='/search'>
-                        <IconSearch size={22} />
-                        <span className='text-xs mt-1'>Search</span>
-                    </Link>
-                    <Link className='flex flex-col items-center justify-center p-2 hover:text-blue-500 dark:hover:text-blue-400 transition duration-200' href='https://www.youtube.com' target='_blank'>
-                        <IconBrandYoutube size={22} />
-                        <span className='text-xs mt-1'>YouTube</span>
-                    </Link>
-                    <Link className='flex flex-col items-center justify-center p-2 hover:text-blue-500 dark:hover:text-blue-400 transition duration-200' href='/user/notes'>
-                        <IconNotes size={22} />
-                        <span className='text-xs mt-1'>Notes</span>
-                    </Link>
-                    <Link className='flex flex-col items-center justify-center p-2 hover:text-blue-500 dark:hover:text-blue-400 transition duration-200' href='/user-profile'>
-                        <IconUserCircle size={22} />
-                        <span className='text-xs mt-1'>Profile</span>
-                    </Link>
-                </ul>
-            </div>
+          </div>
         </div>
-    );
-};
+      </div>
 
-export default Navbar;
+      {/* Mobile menu */}
+      <div
+        className={`${
+          isMenuOpen ? 'block' : 'hidden'
+        } md:hidden fixed inset-0 z-50 bg-gray-900 bg-opacity-50`}
+        onClick={() => setIsMenuOpen(false)}
+      >
+        <div
+          className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-2 pt-2 pb-3 space-y-1">
+            {currentNavigation.map((item) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center px-3 py-2 rounded-lg text-base font-medium ${
+                    isActive(item.href)
+                      ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {Icon && <Icon className="w-6 h-6 mr-2" />}
+                  {item.name || item.label}
+                </Link>
+              )
+            })}
+            <div className="pt-4 flex items-center space-x-4 px-3">
+              <ThemeToggle />
+              {user && (
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    logout()
+                  }}
+                  className="flex items-center text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white px-3 py-2 rounded-lg text-base font-medium w-full"
+                >
+                  <IconLogout className="w-6 h-6 mr-2" />
+                  Logout
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
+}

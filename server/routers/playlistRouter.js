@@ -3,15 +3,20 @@ const Model = require('../models/PlaylistModel');
 const router = express.Router();
 
 // Add a new playlist
-router.post('/add', (req, res) => {
-    console.log(req.body);
-    new Model(req.body).save()
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-            res.status(500).json(err);
+router.post('/add', async (req, res) => {
+    try {
+        const playlist = new Model({
+            ...req.body,
+            clips: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
         });
+        const result = await playlist.save();
+        res.status(200).json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Get all playlists (optionally, you can filter by user later)
@@ -25,26 +30,32 @@ router.get('/getall', (req, res) => {
         });
 });
 
-// Get playlists by userId
-router.get('/getbyuser/:userId', (req, res) => {
-    Model.find({ userId: req.params.userId })
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-            res.status(500).json(err);
-        });
+// Get playlists by userId with populated clips
+router.get('/getbyuser/:userId', async (req, res) => {
+    try {
+        const result = await Model.find({ userId: req.params.userId })
+            .populate('clips')
+            .sort({ updatedAt: -1 });
+        res.status(200).json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// Get a single playlist by id
-router.get('/getbyid/:id', (req, res) => {
-    Model.findById(req.params.id)
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-            res.status(500).json(err);
-        });
+// Get a single playlist by id with populated clips
+router.get('/getbyid/:id', async (req, res) => {
+    try {
+        const result = await Model.findById(req.params.id)
+            .populate('clips');
+        if (!result) {
+            return res.status(404).json({ message: 'Playlist not found' });
+        }
+        res.status(200).json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Add a new clip to an existing playlist
@@ -62,15 +73,44 @@ router.post('/addclip/:id', (req, res) => {
     });
 });
 
+// Update playlist details
+router.patch('/update/:id', async (req, res) => {
+    try {
+        const updates = {
+            ...req.body,
+            updatedAt: new Date()
+        };
+        delete updates.clips; // Prevent direct modification of clips array
+        delete updates.userId; // Prevent changing owner
+
+        const result = await Model.findByIdAndUpdate(
+            req.params.id,
+            updates,
+            { new: true }
+        ).populate('clips');
+        
+        if (!result) {
+            return res.status(404).json({ message: 'Playlist not found' });
+        }
+        res.status(200).json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Delete a playlist
-router.delete('/delete/:id', (req, res) => {
-    Model.findByIdAndDelete(req.params.id)
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-            res.status(500).json(err);
-        });
+router.delete('/delete/:id', async (req, res) => {
+    try {
+        const result = await Model.findByIdAndDelete(req.params.id);
+        if (!result) {
+            return res.status(404).json({ message: 'Playlist not found' });
+        }
+        res.status(200).json({ message: 'Playlist deleted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 module.exports = router;

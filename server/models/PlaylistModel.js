@@ -1,19 +1,12 @@
 const { Schema, model, Types } = require("../connection");
 
-const clipSchema = new mongoose.Schema({
-  videoId: { type: String, required: true }, // YouTube video ID
-  startTime: { type: Number, required: true }, // in seconds
-  endTime: { type: Number, required: true },   // in seconds
-  note: { type: String },                      // optional user note
-  createdAt: { type: Date, default: Date.now }
-});
-
 const playlistSchema = new Schema({
-  userId: { type: Types.ObjectId, ref: 'User', required: true }, // reference to the User model
-  name: { type: String, required: true },  // playlist name
-  description: { type: String },           // optional playlist description
-  clips: [clipSchema],                     // array of clips
-  createdAt: { type: Date, default: Date.now }
+  userId: { type: Types.ObjectId, ref: 'users', required: true },
+  name: { type: String, required: true },
+  description: { type: String },
+  clips: [{ type: Types.ObjectId, ref: 'notes' }], // Reference to ClipModel
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
 module.exports = model('playlist', playlistSchema);

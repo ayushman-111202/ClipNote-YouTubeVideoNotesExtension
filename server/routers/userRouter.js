@@ -1,146 +1,178 @@
 require('dotenv').config();
 const express = require('express');
-const Model = require('../models/UserModel');
 const router = express.Router();
+const UserModel = require('../models/UserModel');
 const jwt = require('jsonwebtoken');
+const userCheck = require('../middlewares/userCheck');
 const verifyToken = require('../middlewares/verifyToken');
 
+// Public routes (no authentication required)
+router.post('/add', async (req, res) => {
+    try {
+        const { name, email, password, contact } = req.body;
+        
+        // Check if user already exists
+        const existingUser = await UserModel.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: 'User already exists with this email' });
+        }
 
-//add a new user
-router.post('/add', (req, res) => {
-    console.log(req.body);
-    new Model(req.body).save()
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-            res.status(500).json(err);
+        // Create username from email
+        const username = email.split('@')[0];
+
+        // Create new user
+        const user = new UserModel({
+            name,
+            email,
+            password,
+            contact,
+            username,
+            role: 'user' // Default role
         });
+
+        await user.save();
+        res.status(201).json({ message: 'User registered successfully' });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ message: 'Error registering user' });
+    }
 });
 
-//get all users
-router.get('/getall', (req, res) => {
-    console.log(req.body);
-    Model.find()
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-        });
+router.post('/authenticate', async (req, res) => {
+    const { email, password, role } = req.body;
+
+    try {
+        // Find user by email
+        const user = await UserModel.findOne({ email });
+        
+        if (!user) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // Check if the user's role matches the requested role
+        if (role && user.role !== role) {
+            return res.status(403).json({ 
+                message: `Invalid login attempt. Please use the correct login portal for your role.`
+            });
+        }
+
+        // Verify password
+        const isValidPassword = await user.comparePassword(password);
+        if (!isValidPassword) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+        }
+
+        // Generate token with user data
+        const payload = {
+            _id: user._id,
+            email: user.email,
+            role: user.role,
+            name: user.name,
+            username: user.username
+        };
+
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '6h' });
+        res.status(200).json({ token, role: user.role });
+    } catch (err) {
+        console.error('Authentication error:', err);
+        res.status(500).json({ message: 'Server error during authentication' });
+    }
 });
 
-//find user
-router.get('/getuser', verifyToken, (req, res) => {
+// Verify token endpoint
+router.get('/verify-token', async (req, res) => {
+    try {
+        // Get token from header
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        
+        if (!token) {
+            return res.json({ valid: false });
+        }
 
-    const { _id } = req.user;
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Find user
+        const user = await UserModel.findById(decoded._id);
+        
+        if (!user) {
+            return res.json({ valid: false });
+        }
 
-    Model.findById(_id)
-        .then((result) => {
-            res.status(200).json(result)
-        }).catch((err) => {
-            res.status(500).json(err)
-        });
+        res.json({ valid: true, user: { id: user._id, role: user.role } });
+    } catch (error) {
+        console.error('Token verification error:', error);
+        res.json({ valid: false });
+    }
 });
 
-//get users by id
-router.get('/getbyid/:id', (req, res) => {
-    Model.findById(req.params.id)
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            res.status(500).json(err);
-        });
+// Protected routes (authentication required)
+router.use(userCheck);
+
+// Get user profile
+router.get('/profile', async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.user._id).select('-password');
+        res.json(user);
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        res.status(500).json({ message: 'Error fetching profile' });
+    }
 });
 
-//delete a user
-router.delete('/delete/:id', (req, res) => {
-    console.log(req.body);
-    Model.findByIdAndDelete(req.params.id)
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-        });
+// Update user profile
+router.patch('/profile', async (req, res) => {
+    try {
+        const updates = { ...req.body };
+        delete updates.role; // Prevent role updates through this endpoint
+        delete updates.password; // Password updates should use a separate endpoint
+
+        const user = await UserModel.findByIdAndUpdate(
+            req.user._id,
+            updates,
+            { new: true }
+        ).select('-password');
+
+        res.json(user);
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).json({ message: 'Error updating profile' });
+    }
 });
 
-// router.post('/authenticate', (req, res) => {
-//     Model.findOne(req.body)
-//         .then((result) => {
-//             if (result) {
-//                 // email and password matched
-//                 // generate token
+// Change password
+router.post('/change-password', async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const user = await UserModel.findById(req.user._id);
 
-//                 const { _id, email, password, role } = result;
-//                 const payload = { _id, email, password, role }
+        const isValidPassword = await user.comparePassword(currentPassword);
+        if (!isValidPassword) {
+            return res.status(401).json({ message: 'Current password is incorrect' });
+        }
 
-//                 jwt.sign(
-//                     payload,
-//                     process.env.JWT_SECRET,
-//                     { expiresIn: '6h' },
-//                     (err, token) => {
-//                         if (err) {
-//                             console.log(err);
-//                             res.status(500).json(err);
-//                         } else {
-//                             res.status(200).json({ token });
-//                         }
-//                     }
-//                 )
+        user.password = newPassword;
+        await user.save();
 
-//             } else {
-//                 res.status(401).json({ message: 'Invalid email or password' });
-//             }
-//         }).catch((err) => {
-//             console.log(err);
-//             res.status(500).json(err);
-//         });
-// });
+        res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+        console.error('Error changing password:', error);
+        res.status(500).json({ message: 'Error changing password' });
+    }
+});
 
-// Modified part of userRouter.js - updated authentication route
-
-router.post('/authenticate', (req, res) => {
-    const { email, password } = req.body;
-
-    // Find user by email
-    Model.findOne({ email })
-        .then((user) => {
-            if (!user) {
-                return res.status(401).json({ message: 'Invalid email or password' });
-            }
-
-            // Check password
-            user.comparePassword(password)
-                .then((isPasswordValid) => {
-                    if (!isPasswordValid) {
-                        return res.status(401).json({ message: 'Invalid email or password' });
-                    }
-
-                    // Generate token
-                    const { _id, role } = user;
-                    const payload = { _id, email, role };
-
-                    jwt.sign(
-                        payload,
-                        process.env.JWT_SECRET,
-                        { expiresIn: '6h' },
-                        (err, token) => {
-                            if (err) {
-                                console.error(err);
-                                return res.status(500).json({ message: 'Error generating token' });
-                            }
-                            res.status(200).json({ token });
-                        }
-                    );
-                })
-                .catch((err) => {
-                    console.error('Password comparison error:', err);
-                    res.status(500).json({ message: 'Server error during authentication' });
-                });
-        })
-        .catch((err) => {
-            console.error('Authentication error:', err);
-            res.status(500).json({ message: 'Server error during authentication' });
-        });
+// Verify token endpoint
+router.get('/verify-token', verifyToken, (req, res) => {
+    res.json({ 
+        valid: true, 
+        user: {
+            _id: req.user._id,
+            email: req.user.email,
+            role: req.user.role,
+            name: req.user.name,
+            username: req.user.username
+        }
+    });
 });
 
 module.exports = router;

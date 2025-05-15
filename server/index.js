@@ -1,53 +1,56 @@
-//import express and cors
-const express = require('express');
-const UserRouter = require('./routers/userRouter');
-const ClipRouter = require('./routers/clipRouter');
-const FeedbackRouter = require('./routers/feedbackRouter');
-const VerifyToken = require('./middlewares/verifyToken');
-const checkAdminExists = require('./middlewares/adminCheck');
-const cors = require('cors');
 require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const { checkAdminExists } = require('./middlewares/adminCheck');
 
-//creating an express app
+// Import routers
+const userRouter = require('./routers/userRouter');
+const adminRouter = require('./routers/adminRouter');
+const clipRouter = require('./routers/clipRouter');
+const playlistRouter = require('./routers/playlistRouter');
+const feedbackRouter = require('./routers/feedbackRouter');
+
 const app = express();
-const port = process.env.PORT || 5000;
 
-// Check for required environment variables
-if (!process.env.JWT_SECRET) {
-    console.error('JWT_SECRET environment variable is required');
-    process.exit(1);
-}
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-// Connect to database and check for admin user
-checkAdminExists()
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URL)
     .then(() => {
-        console.log('Admin check complete');
-        
-        //middleware
-        app.use(cors({
-            origin: '*'
-        }));
-        app.use(express.json());
-        app.use('/clips', ClipRouter);
-        app.use('/users', UserRouter);
-        app.use('/feedbacks', FeedbackRouter);
-
-        // Protected route for token verification
-        app.get('/verify-token', VerifyToken, (req, res) => {
-            res.json({ valid: true, user: req.user });
-        });
-
-        //router or end points
-        app.get('/', (req, res) => {
-            res.send('Response from Server');
-        });
-
-        //starting the server
-        app.listen(port, () => {
-            console.log(`Server Started on port ${port}`); 
-        });
+        console.log('Connected to MongoDB');
+        // Check/create default admin after successful connection
+        return checkAdminExists();
     })
-    .catch((error) => {
-        console.error('Failed to initialize server:', error);
+    .catch((err) => {
+        console.error('MongoDB connection error:', err);
         process.exit(1);
     });
+
+// API Routes
+app.use('/users', userRouter);
+app.use('/admin', adminRouter);
+app.use('/clips', clipRouter);
+app.use('/playlists', playlistRouter);
+app.use('/feedback', feedbackRouter);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        message: 'Something went wrong!',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});

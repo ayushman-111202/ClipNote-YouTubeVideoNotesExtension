@@ -40,14 +40,13 @@ const Signup = () => {
         onSubmit: async (values, { resetForm, setSubmitting }) => {
             try {
                 // POST
-                const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/users/add`, values);
-                // Handle successful signup
-                toast.success('User registered successfully!');
+                await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/users/add`, values);
+                toast.success('Registration successful! Please login.');
                 resetForm();
-                router.push("/room"); // Redirect to the desired page
+                router.push("/login"); // Redirect to login instead of room
             } catch (error) {
-                console.error(error);
-                toast.error('Oops! Something went wrong.');
+                const errorMessage = error.response?.data?.message || 'Failed to register user';
+                toast.error(errorMessage);
                 setSubmitting(false);
             }
         },

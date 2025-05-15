@@ -1,15 +1,10 @@
-import React from 'react'
-// import AdminNavbar from './Navbar';
-import { AuthProvider } from '@/context/AuthContext';
+'use client'
+import RequireAuth from '@/components/RequireAuth'
 
-const Layout = ({ children }) => {
+export default function AdminLayout({ children }) {
   return (
-    <>
-        <AuthProvider>
-        {children}
-        </AuthProvider>
-    </>
+    <RequireAuth requiredRole="admin">
+      {children}
+    </RequireAuth>
   )
 }
-
-export default Layout;

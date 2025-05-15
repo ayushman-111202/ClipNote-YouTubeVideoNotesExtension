@@ -1,11 +1,10 @@
-import React from 'react'
+'use client'
+import RequireAuth from '@/components/RequireAuth'
 
-const Layout = ({children}) => {
+export default function UserLayout({ children }) {
   return (
-    <div>
+    <RequireAuth>
       {children}
-    </div>
+    </RequireAuth>
   )
 }
-
-export default Layout
