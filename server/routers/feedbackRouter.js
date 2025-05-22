@@ -1,38 +1,45 @@
-const express = require('express');
-const Model = require('../models/FeedbackModel');
-const router = express.Router();
+// feedbackRouter.js
+const express = require('express')
+const Model   = require('../models/FeedbackModel')
+const router  = express.Router()
 
-//add a new feedback
-router.post('/add', (req, res) => {
-    console.log(req.body);
-    new Model(req.body).save()
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-        });
-});
+// Add a new feedback
+router.post('/add', async (req, res) => {
+  try {
+    const fb = new Model(req.body)
+    const saved = await fb.save()
+    res.status(201).json(saved)
+  } catch (err) {
+    console.error(err)
+    res.status(400).json({ error: err.message })
+  }
+})
 
-//get all feedbacks
-router.get('/getall', (req, res) => {
-    console.log(req.body);
-    Model.find()
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-        });
-});
+// Get all feedbacks, with optional filters ?category=...&stars=...
+router.get('/getall', async (req, res) => {
+  try {
+    const { category, stars } = req.query
+    const filter = {}
+    if (category) filter.category = category
+    if (stars)     filter.stars     = Number(stars)
 
-//delete a feedback
-router.delete('/delete/:id', (req, res) => {
-    console.log(req.body);
-    Model.findByIdAndDelete(req.params.id)
-        .then((result) => {
-            res.status(200).json(result);
-        }).catch((err) => {
-            console.log(err);
-        });
-});
+    const list = await Model.find(filter).sort({ createdAt: -1 })
+    res.status(200).json(list)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch feedbacks' })
+  }
+})
 
-module.exports = router;
+// Delete a feedback
+router.delete('/delete/:id', async (req, res) => {
+  try {
+    const deleted = await Model.findByIdAndDelete(req.params.id)
+    res.status(200).json(deleted)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to delete feedback' })
+  }
+})
+
+module.exports = router

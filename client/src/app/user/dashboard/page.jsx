@@ -36,6 +36,8 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true)
+      // Use the correct dashboard endpoint from userRouter.js
       const response = await axios.get(
         `${process.env.NEXT_PUBLIC_API_URL}/users/dashboard`,
         {
@@ -44,11 +46,14 @@ export default function Dashboard() {
           }
         }
       )
+      
       setDashboardData(response.data)
-      setLoading(false)
+      setError(null)
     } catch (err) {
-      setError(err.response?.data?.message || 'Error fetching dashboard data')
+      console.error('Error fetching dashboard data:', err)
+      setError(err.response?.data?.message || err.response?.data?.error || 'Error fetching dashboard data')
       toast.error('Failed to fetch dashboard data')
+    } finally {
       setLoading(false)
     }
   }
@@ -56,7 +61,11 @@ export default function Dashboard() {
   const formatDuration = (seconds) => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
-    return `${hours}h ${minutes}m`
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`
+    }
+    return `${minutes}m`
   }
 
   const convertTimeToSeconds = (timeStr) => {
@@ -75,7 +84,15 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="flex justify-center items-center h-[calc(100vh-4rem)]">
-        <div className="text-red-500">{error}</div>
+        <div className="text-center">
+          <div className="text-red-500 mb-4">{error}</div>
+          <button 
+            onClick={fetchDashboardData}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     )
   }
@@ -188,35 +205,44 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {dashboardData.recentClips.map((clip) => (
-              <div key={clip._id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                <div className="flex items-start gap-4">
-                  <img
-                    src={`https://img.youtube.com/vi/${clip.videoID}/default.jpg`}
-                    alt={clip.title}
-                    className="w-24 h-18 object-cover rounded"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {clip.title}
-                    </h3>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Added {new Date(clip.createdAt).toLocaleDateString()}
-                    </p>
+            {dashboardData.recentClips && dashboardData.recentClips.length > 0 ? (
+              dashboardData.recentClips.map((clip) => (
+                <div key={clip._id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={`https://img.youtube.com/vi/${clip.videoID}/default.jpg`}
+                      alt={clip.title}
+                      className="w-24 h-18 object-cover rounded"
+                      onError={(e) => {
+                        e.target.src = '/api/placeholder/96/72'
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {clip.title}
+                      </h3>
+                      {clip.note && (
+                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
+                          {clip.note}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Added {new Date(clip.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <a
+                      href={`https://youtube.com/watch?v=${clip.videoID}&t=${convertTimeToSeconds(clip.startTime)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    >
+                      <IconPlayerPlay className="h-4 w-4" />
+                      <span className="text-sm">Watch</span>
+                    </a>
                   </div>
-                  <a
-                    href={`https://youtube.com/watch?v=${clip.videoID}&t=${convertTimeToSeconds(clip.startTime)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  >
-                    <IconPlayerPlay className="h-4 w-4" />
-                    <span className="text-sm">Watch</span>
-                  </a>
                 </div>
-              </div>
-            ))}
-            {dashboardData.recentClips.length === 0 && (
+              ))
+            ) : (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 No clips yet. Start by creating your first clip!
               </div>
@@ -238,30 +264,36 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {dashboardData.recentPlaylists.map((playlist) => (
-              <div key={playlist._id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-green-100 rounded dark:bg-green-900">
-                    <IconPlaylist className="h-6 w-6 text-green-600 dark:text-green-400" />
+            {dashboardData.recentPlaylists && dashboardData.recentPlaylists.length > 0 ? (
+              dashboardData.recentPlaylists.map((playlist) => (
+                <div key={playlist._id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-green-100 rounded dark:bg-green-900">
+                      <IconPlaylist className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {playlist.name}
+                      </h3>
+                      {playlist.description && (
+                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-300 line-clamp-1">
+                          {playlist.description}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {playlist.clips?.length || 0} clips • Updated {new Date(playlist.updatedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/user/playlists/${playlist._id}`}
+                      className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                    >
+                      <IconArrowRight className="h-5 w-5" />
+                    </Link>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {playlist.name}
-                    </h3>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {playlist.clips?.length || 0} clips • Updated {new Date(playlist.updatedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/user/playlists/${playlist._id}`}
-                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                  >
-                    <IconArrowRight className="h-5 w-5" />
-                  </Link>
                 </div>
-              </div>
-            ))}
-            {dashboardData.recentPlaylists.length === 0 && (
+              ))
+            ) : (
               <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                 No playlists yet. Create one to organize your clips!
               </div>

@@ -15,7 +15,8 @@ import {
   IconX,
   IconLayoutDashboard,
   IconUsers,
-  IconUserPlus
+  IconUserPlus,
+  IconMessageUser
 } from '@tabler/icons-react'
 
 export default function Navbar() {
@@ -28,6 +29,7 @@ export default function Navbar() {
     { name: 'My Clips', href: '/user/clips', icon: IconVideo },
     { name: 'My Playlists', href: '/user/playlists', icon: IconPlaylist },
     { name: 'Search', href: '/user/search', icon: IconSearch },
+    { name: 'Feedback', href: '/user/feedback', icon: IconMessageUser },
     { name: 'Profile', href: '/user/profile', icon: IconUser },
   ]
 

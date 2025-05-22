@@ -78,6 +78,9 @@ export default function AdminDashboard() {
             <Link href="/admin/manage-users" className="bg-white text-blue-600 px-4 py-2 rounded-md hover:bg-blue-50 transition">
               Manage Users
             </Link>
+            <Link href="/admin/manage-feedback?category=Bug Report" className="bg-white text-blue-600 px-4 py-2 rounded-md hover:bg-blue-50 transition">
+              Bug Reports
+            </Link>
             {isSuperAdmin && (
               <Link href="/admin/register-admin" className="bg-white text-blue-600 px-4 py-2 rounded-md hover:bg-blue-50 transition">
                 Register Admin
