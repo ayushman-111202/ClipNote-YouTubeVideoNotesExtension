@@ -12,7 +12,10 @@ import {
   IconChevronRight,
   IconSearch,
   IconAdjustments,
-  IconPlaylist
+  IconPlaylist,
+  IconX,
+  IconCheck,
+  IconPlus
 } from '@tabler/icons-react'
 
 export default function Clips() {
@@ -28,8 +31,15 @@ export default function Clips() {
     sortBy: 'date',
     order: 'desc'
   })
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false)
+  const [playlists, setPlaylists] = useState([])
+  const [selectedPlaylists, setSelectedPlaylists] = useState([])
+  const [newPlaylistName, setNewPlaylistName] = useState('')
+  const [newPlaylistDescription, setNewPlaylistDescription] = useState('')
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false)
+  const [currentPlaylistMemberships, setCurrentPlaylistMemberships] = useState([])
 
-  // Debug logging
   useEffect(() => {
     console.log('User object:', user)
     console.log('User ID:', user?._id || user?.id)
@@ -41,8 +51,7 @@ export default function Clips() {
     try {
       setLoading(true)
       setError(null)
-      
-      // Check if user and token exist
+
       if (!user) {
         setError('User not authenticated')
         return
@@ -53,17 +62,12 @@ export default function Clips() {
         return
       }
 
-      // Use _id if id doesn't exist (common in MongoDB)
       const userId = user._id || user.id
       if (!userId) {
         setError('User ID not found')
         return
       }
 
-      console.log('Fetching clips for user:', userId)
-      console.log('API URL:', `${process.env.NEXT_PUBLIC_API_URL}/clips/user/${userId}`)
-
-      // Make API call with detailed logging
       const response = await axios.get(
         `${process.env.NEXT_PUBLIC_API_URL}/clips/user/${userId}`,
         {
@@ -73,42 +77,29 @@ export default function Clips() {
           }
         }
       )
-      
-      console.log('API Response:', response)
-      console.log('Response data:', response.data)
-      
-      // Handle response format - clipRouter returns array directly
+
       if (Array.isArray(response.data)) {
         setClips(response.data)
-        console.log('Clips loaded:', response.data.length)
       } else if (response.data && response.data.clips && Array.isArray(response.data.clips)) {
-        // Handle if response has clips property
         setClips(response.data.clips)
-        console.log('Clips loaded from clips property:', response.data.clips.length)
       } else {
-        console.log('No clips data found in response')
         setClips([])
       }
-      
-      // Since backend doesn't support pagination yet, set defaults
+
       setTotalPages(1)
       setCurrentPage(1)
       setError(null)
-      
+
     } catch (err) {
-      console.error('Error fetching clips - Full error:', err)
-      console.error('Error response:', err.response)
-      console.error('Error response data:', err.response?.data)
-      console.error('Error response status:', err.response?.status)
-      
+      console.error('Error fetching clips:', err)
+
       let errorMessage = 'Error fetching clips'
-      
       if (err.response?.status === 401) {
         errorMessage = 'Authentication failed. Please login again.'
       } else if (err.response?.status === 403) {
         errorMessage = 'Access denied. Please check your permissions.'
       } else if (err.response?.status === 404) {
-        errorMessage = 'Clips endpoint not found. Please check your API configuration.'
+        errorMessage = 'Clips endpoint not found.'
       } else if (err.response?.data?.error) {
         errorMessage = err.response.data.error
       } else if (err.response?.data?.message) {
@@ -116,7 +107,7 @@ export default function Clips() {
       } else if (err.message) {
         errorMessage = err.message
       }
-      
+
       setError(errorMessage)
       toast.error(errorMessage)
       setClips([])
@@ -125,8 +116,151 @@ export default function Clips() {
     }
   }
 
+  const fetchPlaylists = async () => {
+    try {
+      if (!user?.token) return;
+      const userId = user._id || user.id;
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/playlists/getbyuser/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.playlists) {
+        setPlaylists(response.data.playlists);
+      } else if (Array.isArray(response.data)) {
+        setPlaylists(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching playlists:', err);
+      toast.error('Failed to load playlists');
+    }
+  };
+
+  const fetchCurrentPlaylistMemberships = async (clipId) => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/clips/playlist/${clipId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return response.data.playlists || [];
+    } catch (err) {
+      console.error('Error fetching current playlists:', err);
+      return [];
+    }
+  };
+
+  const handleAddToPlaylist = async () => {
+    if (!selectedClip || selectedPlaylists.length === 0) return;
+
+    try {
+      await Promise.all(selectedPlaylists.map(async (playlistId) => {
+        await axios.patch(
+          `${process.env.NEXT_PUBLIC_API_URL}/clips/move/${selectedClip._id}`,
+          { playlistId },
+          {
+            headers: {
+              Authorization: `Bearer ${user.token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+      }));
+
+      toast.success('Clip added to selected playlists!');
+      const updatedMemberships = await fetchCurrentPlaylistMemberships(selectedClip._id);
+      setCurrentPlaylistMemberships(updatedMemberships);
+      setSelectedPlaylists([]);
+      fetchClips();
+    } catch (err) {
+      console.error('Error adding to playlists:', err);
+      toast.error(err.response?.data?.message || 'Failed to add to playlists');
+    }
+  };
+
+  const handleCreateAndAdd = async () => {
+    if (!newPlaylistName.trim()) {
+      toast.error('Playlist name is required')
+      return
+    }
+
+    try {
+      setCreatingPlaylist(true)
+
+      const playlistResponse = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/playlists/add`,
+        {
+          name: newPlaylistName.trim(),
+          description: newPlaylistDescription.trim(),
+          userId: user._id || user.id
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      const newPlaylist = playlistResponse.data
+
+      await axios.patch(
+        `${process.env.NEXT_PUBLIC_API_URL}/clips/move/${selectedClip._id}`,
+        { playlistId: newPlaylist._id },
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      toast.success(`Clip added to new playlist "${newPlaylist.name}"`)
+      const updatedMemberships = await fetchCurrentPlaylistMemberships(selectedClip._id);
+      setCurrentPlaylistMemberships(updatedMemberships);
+      setShowPlaylistModal(false)
+      setNewPlaylistName('')
+      setNewPlaylistDescription('')
+      setShowCreateForm(false)
+      fetchClips()
+      fetchPlaylists()
+    } catch (err) {
+      console.error('Error creating playlist:', err)
+      toast.error(err.response?.data?.message || 'Failed to create playlist')
+    } finally {
+      setCreatingPlaylist(false)
+    }
+  };
+
+  const togglePlaylistSelection = (playlistId) => {
+    setSelectedPlaylists(prev => 
+      prev.includes(playlistId) 
+        ? prev.filter(id => id !== playlistId) 
+        : [...prev, playlistId]
+    );
+  };
+
+  const openPlaylistModal = async (clip) => {
+    setSelectedClip(clip);
+    setSelectedPlaylists([]);
+    await fetchPlaylists();
+
+    const memberships = await fetchCurrentPlaylistMemberships(clip._id);
+    setCurrentPlaylistMemberships(memberships);
+
+    setShowPlaylistModal(true);
+  };
+
   useEffect(() => {
-    // Add delay to ensure user object is fully loaded
     const timeoutId = setTimeout(() => {
       if (user?.token && (user?._id || user?.id)) {
         fetchClips()
@@ -151,9 +285,6 @@ export default function Clips() {
     }
 
     try {
-      console.log('Deleting clip:', clipId)
-      
-      // Use the correct delete endpoint from clipRouter.js
       await axios.delete(
         `${process.env.NEXT_PUBLIC_API_URL}/clips/delete/${clipId}`,
         {
@@ -163,14 +294,11 @@ export default function Clips() {
           }
         }
       )
-      
-      // Refresh the clips list
+
       fetchClips(currentPage)
       toast.success('Clip deleted successfully')
     } catch (err) {
       console.error('Error deleting clip:', err)
-      console.error('Delete error response:', err.response?.data)
-      
       const errorMessage = err.response?.data?.error || 
                           err.response?.data?.message || 
                           'Error deleting clip'
@@ -184,7 +312,7 @@ export default function Clips() {
         const [hours, minutes, seconds] = timeStr.split(':').map(Number);
         return hours * 3600 + minutes * 60 + seconds;
       };
-      
+
       const startSeconds = getSeconds(start);
       const endSeconds = getSeconds(end);
       const totalSeconds = endSeconds - startSeconds;
@@ -208,22 +336,17 @@ export default function Clips() {
     }
   }
 
-  // Filter clips based on search term if backend doesn't support it
   const filteredClips = clips.filter(clip => 
     searchTerm === '' || 
     clip.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (clip.note && clip.note.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
-  // Debug render
-  console.log('Render state:', { loading, error, clipsCount: clips.length, filteredCount: filteredClips.length })
-
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-[calc(100vh-4rem)]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
         <p className="text-gray-600 dark:text-gray-400">Loading your clips...</p>
-        {/* Debug info in loading state */}
         <div className="mt-4 text-xs text-gray-500">
           <p>User: {user ? 'Loaded' : 'Loading...'}</p>
           <p>Token: {user?.token ? 'Available' : 'Missing'}</p>
@@ -257,7 +380,6 @@ export default function Clips() {
           >
             Continue Anyway
           </button>
-          {/* Debug info in error state */}
           <div className="mt-4 text-xs text-gray-500 text-left">
             <p><strong>Debug Info:</strong></p>
             <p>API URL: {process.env.NEXT_PUBLIC_API_URL}</p>
@@ -272,12 +394,10 @@ export default function Clips() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        {/* Header and Search */}
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Clips</h1>
-              {/* Debug info */}
               <p className="text-sm text-gray-500">
                 {clips.length} total clips, {filteredClips.length} shown
               </p>
@@ -310,7 +430,6 @@ export default function Clips() {
           </div>
         </div>
 
-        {/* Clips Grid */}
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredClips.length === 0 ? (
             <div className="col-span-full text-center py-12">
@@ -376,7 +495,7 @@ export default function Clips() {
                     </a>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setSelectedClip(clip)}
+                        onClick={() => openPlaylistModal(clip)}
                         className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
                         title="Add to playlist"
                       >
@@ -397,7 +516,6 @@ export default function Clips() {
           )}
         </div>
 
-        {/* Pagination - Currently disabled since backend doesn't support it */}
         <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
           <div className="flex-1 flex justify-between sm:hidden">
             <button
@@ -442,6 +560,228 @@ export default function Clips() {
           </div>
         </div>
       </div>
+
+      {/* Enhanced Playlist Modal with current memberships */}
+      {showPlaylistModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Add to Playlist
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowPlaylistModal(false)
+                    setShowCreateForm(false)
+                  }}
+                  className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <IconX className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Current Playlist Memberships */}
+              {currentPlaylistMemberships.length > 0 && (
+                <div className="mb-4 bg-blue-50 dark:bg-gray-700 rounded-lg p-3">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Already in these playlists:
+                  </p>
+                  <div className="space-y-2">
+                    {currentPlaylistMemberships.map(playlist => (
+                      <div 
+                        key={playlist._id} 
+                        className="flex items-center p-2 bg-white dark:bg-gray-600 rounded"
+                      >
+                        <IconCheck className="h-4 w-4 text-green-500 mr-2" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {playlist.name}
+                          </p>
+                          {playlist.description && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {playlist.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className={`px-4 py-2 font-medium ${!showCreateForm ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 dark:text-gray-400'}`}
+                >
+                  Existing Playlists
+                </button>
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className={`px-4 py-2 font-medium ${showCreateForm ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 dark:text-gray-400'}`}
+                >
+                  New Playlist
+                </button>
+              </div>
+
+              {showCreateForm ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Playlist Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={newPlaylistName}
+                      onChange={(e) => setNewPlaylistName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      placeholder="Enter playlist name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Description (Optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={newPlaylistDescription}
+                      onChange={(e) => setNewPlaylistDescription(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      placeholder="Enter playlist description"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3 pt-2">
+                    <button
+                      onClick={() => setShowCreateForm(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleCreateAndAdd}
+                      disabled={!newPlaylistName.trim() || creatingPlaylist}
+                      className={`px-4 py-2 rounded-lg text-white ${
+                        !newPlaylistName.trim()
+                          ? 'bg-blue-300 cursor-not-allowed'
+                          : 'bg-blue-500 hover:bg-blue-600'
+                      } flex items-center gap-2`}
+                    >
+                      {creatingPlaylist ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <IconPlus size={18} />
+                          Create & Add
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      Select one or more playlists to add this clip to:
+                    </p>
+                    <div className="max-h-60 overflow-y-auto border rounded-lg dark:border-gray-600">
+                      {playlists.length === 0 ? (
+                        <div className="p-4 text-center">
+                          <p className="text-gray-500 dark:text-gray-400 mb-3">No playlists found</p>
+                          <button
+                            onClick={() => setShowCreateForm(true)}
+                            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center justify-center gap-1"
+                          >
+                            <IconPlus size={16} />
+                            Create a new playlist
+                          </button>
+                        </div>
+                      ) : (
+                        playlists.map((playlist) => (
+                          <div
+                            key={playlist._id}
+                            className={`p-3 border-b dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                              selectedPlaylists.includes(playlist._id) ? 'bg-blue-50 dark:bg-gray-700' : ''
+                            } ${
+                              currentPlaylistMemberships.some(p => p._id === playlist._id) ? 'opacity-50' : ''
+                            }`}
+                            onClick={() => !currentPlaylistMemberships.some(p => p._id === playlist._id) && togglePlaylistSelection(playlist._id)}
+                          >
+                            <div className="flex items-center">
+                              <div className={`w-5 h-5 border rounded mr-3 flex items-center justify-center ${
+                                selectedPlaylists.includes(playlist._id)
+                                  ? 'bg-blue-500 border-blue-500 text-white'
+                                  : currentPlaylistMemberships.some(p => p._id === playlist._id)
+                                    ? 'bg-green-100 border-green-300 dark:bg-green-900 dark:border-green-700'
+                                    : 'border-gray-300 dark:border-gray-500'
+                              }`}>
+                                {selectedPlaylists.includes(playlist._id) && <IconCheck size={14} />}
+                                {currentPlaylistMemberships.some(p => p._id === playlist._id) && !selectedPlaylists.includes(playlist._id) && (
+                                  <IconCheck className="h-3 w-3 text-green-500 dark:text-green-300" />
+                                )}
+                              </div>
+                              <div>
+                                <h4 className={`font-medium ${
+                                  currentPlaylistMemberships.some(p => p._id === playlist._id)
+                                    ? 'text-gray-500 dark:text-gray-400'
+                                    : 'text-gray-900 dark:text-white'
+                                }`}>
+                                  {playlist.name}
+                                </h4>
+                                {playlist.description && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                    {playlist.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <button
+                      onClick={() => setShowCreateForm(true)}
+                      className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 text-sm"
+                    >
+                      <IconPlus size={16} />
+                      Create new playlist
+                    </button>
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => setShowPlaylistModal(false)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleAddToPlaylist}
+                        disabled={selectedPlaylists.length === 0}
+                        className={`px-4 py-2 rounded-lg text-white ${
+                          selectedPlaylists.length === 0
+                            ? 'bg-blue-300 cursor-not-allowed'
+                            : 'bg-blue-500 hover:bg-blue-600'
+                        }`}
+                      >
+                        Add to {selectedPlaylists.length > 1 ? `${selectedPlaylists.length} Playlists` : 'Playlist'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

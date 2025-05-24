@@ -46,6 +46,7 @@ export default function AdminDashboard() {
   }, [user?.token])
 
   const isSuperAdmin = stats.adminInfo?.email === process.env.NEXT_PUBLIC_DEFAULT_ADMIN_EMAIL
+  // const isSuperAdmin = stats.adminInfo?.isSuperAdmin
 
   if (error) {
     return (

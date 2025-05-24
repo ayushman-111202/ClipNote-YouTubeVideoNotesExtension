@@ -112,6 +112,26 @@ router.patch('/move/:clipId', async (req, res) => {
     }
 });
 
+// Get all playlists containing a specific clip
+router.get('/playlist/:clipId', async (req, res) => {
+  try {
+    const clip = await Model.findById(req.params.clipId);
+    if (!clip) {
+      return res.status(404).json({ message: 'Clip not found' });
+    }
+
+    const playlists = await PlaylistModel.find({ 
+      clips: clip._id,
+      userId: req.user._id 
+    }).select('name description');
+
+    res.status(200).json({ playlists });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete a clip
 router.delete('/delete/:id', async (req, res) => {
     try {

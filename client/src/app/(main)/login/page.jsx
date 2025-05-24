@@ -17,7 +17,7 @@ export default function Login() {
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      const path = user.role === 'admin' ? '/admin/dashboard' : '/user/profile';
+      const path = user.role === 'admin' ? '/admin/dashboard' : '/user/dashboard';
       router.replace(path);
     }
   }, [user, loading, router]);

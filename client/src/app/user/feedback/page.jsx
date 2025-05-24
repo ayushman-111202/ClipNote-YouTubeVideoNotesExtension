@@ -46,7 +46,7 @@ const FeedbackForm = () => {
       await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/feedback/add`, feedbackData)
       alert('Thank you for your feedback!')
       resetForm()
-      router.push('/')
+      router.push('/user/dashboard')
     } catch (error) {
       console.error('Error submitting feedback:', error)
       alert('Failed to submit feedback. Please try again.')
@@ -57,9 +57,9 @@ const FeedbackForm = () => {
 
   if (!user) {
     return (
-      <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-10">
-        <h2 className="text-2xl font-bold text-center mb-4">Feedback Form</h2>
-        <p className="text-center text-gray-600">
+      <div className="max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md mt-10">
+        <h2 className="text-2xl font-bold text-center mb-4 dark:text-white">Feedback Form</h2>
+        <p className="text-center text-gray-600 dark:text-gray-300">
           Please sign in to submit feedback.
         </p>
       </div>
@@ -67,9 +67,9 @@ const FeedbackForm = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-10">
-      <h2 className="text-2xl font-bold text-center mb-4">Feedback Form</h2>
-      <p className="text-sm text-gray-600 mb-6 text-center">
+    <div className="max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md mt-10">
+      <h2 className="text-2xl font-bold text-center mb-4 dark:text-white">Feedback Form</h2>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 text-center">
         Help us improve by sharing your experience, reporting issues, or suggesting features.
       </p>
 
@@ -82,23 +82,23 @@ const FeedbackForm = () => {
           <Form className="space-y-4">
             {/* Category */}
             <div>
-              <label htmlFor="category" className="block text-gray-700 mb-1">Category *</label>
+              <label htmlFor="category" className="block text-gray-700 dark:text-gray-200 mb-1">Category *</label>
               <Field
                 as="select"
                 name="category"
                 id="category"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 {categories.map(c => (
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </Field>
-              <ErrorMessage name="category" component="div" className="text-red-500 text-sm mt-1" />
+              <ErrorMessage name="category" component="div" className="text-red-500 dark:text-red-400 text-sm mt-1" />
             </div>
 
             {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-gray-700 mb-1">
+              <label htmlFor="description" className="block text-gray-700 dark:text-gray-200 mb-1">
                 Your Feedback *
               </label>
               <Field
@@ -106,22 +106,22 @@ const FeedbackForm = () => {
                 name="description"
                 id="description"
                 rows="5"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 placeholder="Describe your experience, report issues, or suggest improvements..."
               />
-              <ErrorMessage name="description" component="div" className="text-red-500 text-sm mt-1" />
+              <ErrorMessage name="description" component="div" className="text-red-500 dark:text-red-400 text-sm mt-1" />
             </div>
 
             {/* Stars */}
             <div>
-              <label className="block text-gray-700 mb-1">Rating *</label>
+              <label className="block text-gray-700 dark:text-gray-200 mb-1">Rating *</label>
               <div className="flex items-center">
                 {[1, 2, 3, 4, 5].map(star => (
                   <label key={star} className="mr-2 cursor-pointer">
                     <Field type="radio" name="stars" value={String(star)} className="hidden" />
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className={`h-8 w-8 ${values.stars >= star ? 'text-yellow-500' : 'text-gray-300'}`}
+                      className={`h-8 w-8 ${values.stars >= star ? 'text-yellow-500' : 'text-gray-300 dark:text-gray-600'}`}
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -130,17 +130,17 @@ const FeedbackForm = () => {
                   </label>
                 ))}
               </div>
-              <ErrorMessage name="stars" component="div" className="text-red-500 text-sm mt-1" />
+              <ErrorMessage name="stars" component="div" className="text-red-500 dark:text-red-400 text-sm mt-1" />
             </div>
 
-            <div className="text-sm text-gray-500">
-              You’re submitting feedback as: <strong>{user.email}</strong>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              You're submitting feedback as: <strong className="dark:text-gray-300">{user.email}</strong>
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition disabled:bg-blue-400"
+              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition disabled:bg-blue-400 dark:bg-blue-700 dark:hover:bg-blue-800 dark:disabled:bg-blue-500"
             >
               {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
             </button>

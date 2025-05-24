@@ -23,8 +23,8 @@ router.patch('/users/:id/role', async (req, res) => {
     try {
         // Check if the requesting admin is a super admin
         if (req.user.email !== process.env.DEFAULT_ADMIN_EMAIL) {
-            return res.status(403).json({ 
-                message: 'Access denied. Only super admin can modify user roles.' 
+            return res.status(403).json({
+                message: 'Access denied. Only super admin can modify user roles.'
             });
         }
 
@@ -51,13 +51,13 @@ router.post('/register', async (req, res) => {
     try {
         // Check if the requesting admin is a super admin
         if (req.user.email !== process.env.DEFAULT_ADMIN_EMAIL) {
-            return res.status(403).json({ 
-                message: 'Access denied. Only super admin can register new admins.' 
+            return res.status(403).json({
+                message: 'Access denied. Only super admin can register new admins.'
             });
         }
 
         const { name, email, password, contact } = req.body;
-        
+
         // Check if admin already exists
         const existingAdmin = await User.findOne({ email });
         if (existingAdmin) {
@@ -90,8 +90,8 @@ router.delete('/users/:id', async (req, res) => {
     try {
         // Check if the requesting admin is a super admin
         if (req.user.email !== process.env.DEFAULT_ADMIN_EMAIL) {
-            return res.status(403).json({ 
-                message: 'Access denied. Only super admin can delete users.' 
+            return res.status(403).json({
+                message: 'Access denied. Only super admin can delete users.'
             });
         }
 
